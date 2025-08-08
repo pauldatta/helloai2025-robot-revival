@@ -8,6 +8,8 @@ The system uses a Python application powered by the Gemini Live API with a model
 
 The installation's hardware is managed by a multi-controller setup, orchestrated by the Python control plane.
 
+![System Architecture Diagram](context/system_architecture.png)
+
 1.  **Python Control Plane**: The central application that serves as the "brain" of the operation. It's composed of three modules:
     -   `main.py`: The primary entry point that initializes the application.
     -   `live_director.py`: Manages the full-duplex audio stream with the Gemini Live API.
