@@ -2,13 +2,16 @@
 
 This project is the control plane for "Aum's Journey," an interactive robotic art installation that tells the true story of Aum, a man who found his way home after being lost for 15 years, using Google's voice search.
 
-The system uses a Python application powered by the Gemini 2.5 Pro API. The AI acts as a "director," interpreting user prompts and using function calling to send serial commands to the physical hardware, orchestrating the narrative in real-time.
+The system uses a Python application powered by the Gemini Live API with a model optimized for real-time interaction (`gemini-live-2.5-flash-preview`). The AI acts as a "director," interpreting voice commands and using function calling to send serial commands to the physical hardware, orchestrating the narrative in real-time.
 
 ## System Architecture
 
-The installation's hardware is managed by a multi-controller setup:
+The installation's hardware is managed by a multi-controller setup, orchestrated by the Python control plane.
 
-1.  **Python Control Plane (`main.py`)**: The central application that serves as the "brain" of the operation. It hosts the Gemini model, manages the user interaction, and sends commands to the appropriate microcontroller.
+1.  **Python Control Plane**: The central application that serves as the "brain" of the operation. It's composed of three modules:
+    -   `main.py`: The primary entry point that initializes the application.
+    -   `live_director.py`: Manages the full-duplex audio stream with the Gemini Live API.
+    -   `hardware_controller.py`: Encapsulates all serial communication and hardware-specific tool functions.
 2.  **Robotic Arm Controller**: An OpenCR board running at `57600` baud, responsible for controlling a 3-axis robotic arm with Dynamixel motors.
 3.  **Main Scene Controller**: An Arduino Mega running at `9600` baud, which acts as the master controller for the diorama's narrative scenes.
 4.  **Secondary LED Controller**: A slave Arduino Mega that controls the main logo animation, triggered by digital pin signals from the Main Scene Controller.
@@ -25,13 +28,15 @@ The `AUM_DIRECTOR.md` file serves as the master prompt and "show flow" for the G
 
 ## Project Structure
 
--   **`main.py`**: The main entry point for the Python application.
+-   **`main.py`**: The main entry point for the application.
+-   **`live_director.py`**: Manages the real-time voice interaction with the Gemini Live API.
+-   **`hardware_controller.py`**: Handles all serial communication and hardware control logic.
 -   **`AUM_DIRECTOR.md`**: The system prompt for the AI director.
 -   **`AUM_STORY.md`**: The complete narrative of Aum's journey.
 -   **`context/CodeContext.md`**: A detailed technical breakdown of the Arduino firmware.
 -   **`requirements.txt`**: Lists the necessary Python dependencies.
 -   **`.env.example`**: An example file for setting up your environment variables.
--   **`test_main.py`**: Unit tests for the application logic.
+-   **`test_hardware_controller.py`**: Unit tests for the hardware controller module.
 -   **`test_integration.py`**: An integration test that makes a live call to the Gemini API.
 
 ## Getting Started
