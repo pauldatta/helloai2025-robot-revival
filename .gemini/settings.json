@@ -44,6 +44,9 @@
         "PROJECT_ID": "vital-octagon-19612",
         "MCP_SERVER_REQUEST_TIMEOUT": "55000"
       }
+    },
+     "context7": {
+      "httpUrl": "https://mcp.context7.com/mcp"
     }
   }
 }
