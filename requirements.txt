@@ -3,3 +3,4 @@ pyserial
 python-dotenv
 pyaudio
 exceptiongroup
+foreman
