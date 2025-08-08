@@ -8,27 +8,19 @@ from live_director import AumDirectorApp
 def main():
     """
     Main entry point for the Aum's Journey application.
-    Loads configuration, reads the director's persona, and starts the app.
+    Loads configuration and starts the director application.
     """
     # Load environment variables from .env file
     load_dotenv()
 
     # Check for the API key before proceeding
-    if 'GEMINI_API_KEY' not in os.environ:
-        print("Error: The GEMINI_API_KEY environment variable is not set.")
+    # Note: The orchestrator now handles the API key directly.
+    if 'GEMINI_API_KEY' not in os.environ and 'GOOGLE_API_KEY' not in os.environ:
+        print("Error: GEMINI_API_KEY or GOOGLE_API_KEY environment variable is not set.")
         print("Please create a .env file and set the key.")
         return
 
-    # Read the director's persona from the markdown file
-    try:
-        with open('AUM_DIRECTOR.md', 'r') as f:
-            director_persona = f.read()
-    except FileNotFoundError:
-        print("Error: AUM_DIRECTOR.md not found. Please ensure the file is in the same directory.")
-        return
-
-    # Create and run the application
-    app = AumDirectorApp(director_persona=director_persona)
+    app = AumDirectorApp()
     
     try:
         asyncio.run(app.run())
