@@ -2,7 +2,7 @@
 
 This project is the control plane for "Aum's Journey," an interactive robotic art installation that tells the true story of Aum, a man who found his way home after being lost for 15 years, using Google's voice search.
 
-The system uses a Python application powered by the Gemini Live API with a model optimized for real-time interaction (`gemini-live-2.5-flash-preview`). The AI acts as a "director," interpreting voice commands and using function calling to send serial commands to the physical hardware, orchestrating the narrative in real-time.
+The system uses a Python application powered by the Gemini Live API. The AI acts as a "director," interpreting voice commands and using function calling to send serial commands to the physical hardware, orchestrating the narrative in real-time.
 
 ## System Architecture
 
@@ -10,78 +10,85 @@ The installation's hardware is managed by a multi-controller setup, orchestrated
 
 ![System Architecture Diagram](context/system_architecture.png)
 
-1.  **Python Control Plane**: The central application that serves as the "brain" of the operation. It's composed of three modules:
-    -   `main.py`: The primary entry point that initializes the application.
-    -   `live_director.py`: Manages the full-duplex audio stream with the Gemini Live API.
-    -   `hardware_controller.py`: Encapsulates all serial communication and hardware-specific tool functions.
-2.  **Robotic Arm Controller**: An OpenCR board running at `57600` baud, responsible for controlling a 3-axis robotic arm with Dynamixel motors.
-3.  **Main Scene Controller**: An Arduino Mega running at `9600` baud, which acts as the master controller for the diorama's narrative scenes.
-4.  **Secondary LED Controller**: A slave Arduino Mega that controls the main logo animation, triggered by digital pin signals from the Main Scene Controller.
+## Modes of Operation
 
-### Original Controller Interface
+The application has two primary modes, determined by your `.env` configuration:
 
-The following screenshot shows the original `MainController` application that was used to operate the diorama. The logs and command structures visible here were used to reverse-engineer the control logic.
-
-![Original Main Controller Interface](context/Server_Screenshot.png)
-
-## The Director's Logic (`AUM_DIRECTOR.md`)
-
-The `AUM_DIRECTOR.md` file serves as the master prompt and "show flow" for the Gemini model. It explicitly maps each narrative beat of Aum's story to a precise sequence of hardware actions by providing the AI with two Python functions to call: `trigger_diorama_scene` and `move_robotic_arm`. The coordinates and scene IDs used in this file were derived from the original software's logs and source code.
-
-## Project Structure
-
--   **`main.py`**: The main entry point for the application.
--   **`live_director.py`**: Manages the real-time voice interaction with the Gemini Live API.
--   **`hardware_controller.py`**: Handles all serial communication and hardware control logic.
--   **`AUM_DIRECTOR.md`**: The system prompt for the AI director.
--   **`AUM_STORY.md`**: The complete narrative of Aum's journey.
--   **`context/CodeContext.md`**: A detailed technical breakdown of the Arduino firmware.
--   **`requirements.txt`**: Lists the necessary Python dependencies.
--   **`.env.example`**: An example file for setting up your environment variables.
--   **`test_hardware_controller.py`**: Unit tests for the hardware controller module.
--   **`test_integration.py`**: An integration test that makes a live call to the Gemini API.
+1.  **Emulator Mode (Default):** For development without physical hardware. If no port variables are set in your `.env` file, the application defaults to using a high-fidelity emulator managed by `foreman` via stable symlinks.
+2.  **Hardware Mode:** For connecting to the physical Arduino and OpenCR boards. When you define `MAIN_CONTROLLER_PORT` and `ROBOTIC_ARM_PORT` in your `.env` file, the application will connect to the real hardware.
 
 ## Getting Started
 
-1.  **Create your Environment File:**
-    Rename the `.env.example` file to `.env` and add your specific configuration details.
-    ```bash
-    cp .env.example .env
-    ```
+### 1. First-Time Setup
+- **Install `socat`** (Required for Emulator Mode):
+  - **macOS:** `brew install socat`
+  - **Linux:** `sudo apt-get install socat`
+- **Install Audio & Python Dependencies:**
+  - **macOS:** `brew install portaudio`
+  - **Linux:** `sudo apt-get install libportaudio2`
+  - Then, install Python packages: `pip install -r requirements.txt`
 
-2.  **Edit the `.env` file:**
-    Open the `.env` file and fill in the required values.
-    ```dotenv
-    # Your Google AI API Key for accessing Gemini
-    GEMINI_API_KEY="YOUR_API_KEY"
+### 2. Running the Emulator (Default)
+- Simply run `foreman` using the development Procfile. It will automatically create and use the virtual serial ports.
+  ```bash
+  source venv/bin/activate
+  foreman start -f Procfile.dev
+  ```
+- **Note:** You do not need to configure any ports in your `.env` file for this mode. The application will default to the symlinks created by `foreman`.
 
-    # The serial port for the Main Scene Controller (Baud: 9600)
-    MAIN_CONTROLLER_PORT="/dev/your_main_controller_port"
+### Example Emulator Log Output
+When running correctly, you will see the `director` and `emulator` processes interacting. The director calls tools, and the emulator logs the commands it receives.
 
-    # The serial port for the Robotic Arm Controller (Baud: 57600)
-    ROBOTIC_ARM_PORT="/dev/your_robotic_arm_port"
-    ```
-    *To find your serial port names, run `ls /dev/tty.*` in your terminal before and after plugging in each device.*
+```
+21:47:18 socat_main.1 | started with pid 39679
+21:47:18 socat_arm.1  | started with pid 39680
+21:47:18 emulator.1   | started with pid 39681
+21:47:18 director.1   | started with pid 39682
+21:47:18 socat_main.1 | 2025/08/08 21:47:18 socat[39679] N PTY is /dev/ttys002
+21:47:18 socat_main.1 | 2025/08/08 21:47:18 socat[39679] N PTY is /dev/ttys004
+21:47:18 socat_main.1 | 2025/08/08 21:47:18 socat[39679] N starting data transfer loop with FDs [5,5] and [7,7]
+21:47:18 socat_arm.1  | 2025/08/08 21:47:18 socat[39680] N PTY is /dev/ttys019
+21:47:18 socat_arm.1  | 2025/08/08 21:47:18 socat[39680] N PTY is /dev/ttys020
+21:47:18 socat_arm.1  | 2025/08/08 21:47:18 socat[39680] N starting data transfer loop with FDs [5,5] and [7,7]
+21:47:18 emulator.1   | --- Hardware Emulator Running ---
+21:47:18 emulator.1   | This script simulates the physical Arduino and OpenCR boards.
+21:47:18 emulator.1   | Run via 'foreman start -f Procfile.dev'
+21:47:18 emulator.1   | Press Ctrl+C to exit.
+21:47:18 emulator.1   | [ARM EMULATOR] Listening on ./robotic_arm_emu_port
+21:47:18 emulator.1   | [SCENE EMULATOR] Listening on ./main_controller_emu_port
+21:47:18 director.1   | Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+21:47:18 director.1   | Starting Aum's Journey Director...
+21:47:18 director.1   | Use headphones to prevent audio feedback loops.
+21:47:18 director.1   | Press Ctrl+C to exit.
+21:47:19 director.1   | Microphone is open. Start speaking.
+21:47:23 director.1   | --> Calling Tool: move_robotic_arm(p2=68, velocity=50, p1=2468, p3=3447, acceleration=5)
+21:47:23 director.1   | [Robotic Arm Controller] Waiting for serial port './robotic_arm_app_port' to become available...
+21:47:23 director.1   | Successfully connected to Robotic Arm Controller on port: ./robotic_arm_app_port
+21:47:23 director.1   | DIRECTOR ACTION: Sent to Robotic Arm Controller: 3 50 50 50 5 5 5 2468 68 3447
+21:47:23 emulator.1   | [ARM EMULATOR] Received command: '3 50 50 50 5 5 5 2468 68 3447'
+21:47:23 emulator.1   | [ARM EMULATOR] Updated position to: [2468, 68, 3447]
+21:47:23 director.1   | <-- Tool Result: Command '3 50 50 50 5 5 5 2468 68 3447' sent to Robotic Arm Controller.
+21:47:23 director.1   | --> Calling Tool: trigger_diorama_scene(scene_command_id=2)
+21:47:23 director.1   | [Main Scene Controller] Waiting for serial port './main_controller_app_port' to become available...
+21:47:23 director.1   | Successfully connected to Main Scene Controller on port: ./main_controller_app_port
+21:47:23 director.1   | DIRECTOR ACTION: Sent to Main Scene Controller: 2
+21:47:23 emulator.1   | [SCENE EMULATOR] Received command: '2'
+21:47:23 director.1   | <-- Tool Result: Command '2' sent to Main Scene Controller.
+```
 
-3.  **Install Dependencies:**
-    You will need to install Python dependencies as well as the `portaudio` library, which is required by `pyaudio`.
-
-    **On macOS (using Homebrew):**
-    ```bash
-    brew install portaudio
-    pip install -r requirements.txt
-    ```
-
-    **On Debian/Ubuntu:**
-    ```bash
-    sudo apt-get update
-    sudo apt-get install libportaudio2
-    pip install -r requirements.txt
-    ```
-
-4.  **Run the Application:**
-    The application now runs a full-duplex audio loop. **It is highly recommended to use headphones** to prevent the model's spoken output from being fed back into the microphone.
-    ```bash
-    python main.py
-    ```
-    You may need to grant microphone access to your terminal application when you run it for the first time.
+### 3. Running with Physical Hardware
+1.  **Find Your Port Names:** Connect your hardware and find the device paths (e.g., by running `ls /dev/tty.*`).
+2.  **Configure `.env`:**
+    - Create a `.env` file (copy `.env.example`).
+    - Define the two hardware port variables.
+      ```dotenv
+      GEMINI_API_KEY="YOUR_API_KEY_HERE"
+      MAIN_CONTROLLER_PORT="/dev/tty.usbmodem14101"
+      ROBOTIC_ARM_PORT="/dev/tty.usbmodem14201"
+      ```
+3.  **Run the Application:**
+    - Start the main application directly (do not use `foreman`).
+      ```bash
+      source venv/bin/activate
+      python main.py
+      ```

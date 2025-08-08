@@ -1,0 +1,8 @@
+# Procfile for the development/emulator environment.
+# This starts the virtual serial ports using stable symlinks and then the apps.
+# Run with: foreman start -f Procfile.dev
+
+socat_main: socat -d -d pty,raw,echo=0,link=./main_controller_app_port pty,raw,echo=0,link=./main_controller_emu_port
+socat_arm:  socat -d -d pty,raw,echo=0,link=./robotic_arm_app_port pty,raw,echo=0,link=./robotic_arm_emu_port
+emulator:   python -u hardware_emulator.py
+director:   python -u main.py

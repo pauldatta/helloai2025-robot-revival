@@ -13,6 +13,16 @@ class SerialCommunicator:
         self.baudrate = baudrate
         self.name = name
         self.ser = None
+
+        # Wait for the serial port to be created by socat
+        print(f"[{name}] Waiting for serial port '{port}' to become available...")
+        start_time = time.time()
+        while not os.path.exists(port):
+            if time.time() - start_time > 30: # 30-second timeout
+                print(f"[{name}] Error: Timed out waiting for port '{port}'.")
+                break
+            time.sleep(0.5)
+
         try:
             self.ser = serial.Serial(self.port, self.baudrate, timeout=1)
             print(f"Successfully connected to {self.name} on port: {self.port}")
@@ -40,12 +50,26 @@ class SerialCommunicator:
             self.ser.close()
             print(f"Serial connection for {self.name} closed.")
 
-# --- Initialize Controllers ---
-MAIN_CONTROLLER_PORT = os.getenv('MAIN_CONTROLLER_PORT', '/dev/your_main_controller_port')
-ROBOTIC_ARM_PORT = os.getenv('ROBOTIC_ARM_PORT', '/dev/your_robotic_arm_port')
+# --- Controller Initialization ---
 
-main_scene_controller = SerialCommunicator(port=MAIN_CONTROLLER_PORT, baudrate=9600, name="Main Scene Controller")
-robotic_arm_controller = SerialCommunicator(port=ROBOTIC_ARM_PORT, baudrate=57600, name="Robotic Arm Controller")
+main_scene_controller = None
+robotic_arm_controller = None
+
+def get_main_scene_controller():
+    """Initializes and returns the main scene controller singleton."""
+    global main_scene_controller
+    if main_scene_controller is None:
+        port = os.getenv('MAIN_CONTROLLER_PORT', './main_controller_app_port')
+        main_scene_controller = SerialCommunicator(port=port, baudrate=9600, name="Main Scene Controller")
+    return main_scene_controller
+
+def get_robotic_arm_controller():
+    """Initializes and returns the robotic arm controller singleton."""
+    global robotic_arm_controller
+    if robotic_arm_controller is None:
+        port = os.getenv('ROBOTIC_ARM_PORT', './robotic_arm_app_port')
+        robotic_arm_controller = SerialCommunicator(port=port, baudrate=57600, name="Robotic Arm Controller")
+    return robotic_arm_controller
 
 # --- Tool Definitions with Validation ---
 
@@ -63,7 +87,8 @@ def trigger_diorama_scene(scene_command_id: int):
         print(error_msg)
         return error_msg
     
-    return main_scene_controller.send_command(str(scene_command_id))
+    controller = get_main_scene_controller()
+    return controller.send_command(str(scene_command_id))
 
 def move_robotic_arm(p1: int, p2: int, p3: int, velocity: int = 50, acceleration: int = 5):
     """
@@ -85,9 +110,13 @@ def move_robotic_arm(p1: int, p2: int, p3: int, velocity: int = 50, acceleration
         return error_msg
 
     command = f"3 {velocity} {velocity} {velocity} {acceleration} {acceleration} {acceleration} {p1} {p2} {p3}"
-    return robotic_arm_controller.send_command(command)
+    controller = get_robotic_arm_controller()
+    return controller.send_command(command)
 
 def close_all_ports():
     """A helper function to close all serial connections."""
-    main_scene_controller.close()
-    robotic_arm_controller.close()
+    global main_scene_controller, robotic_arm_controller
+    if main_scene_controller:
+        main_scene_controller.close()
+    if robotic_arm_controller:
+        robotic_arm_controller.close()
