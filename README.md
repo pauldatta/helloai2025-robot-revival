@@ -1,27 +1,80 @@
 # Aum's Journey: An Interactive Robotic Art Installation
 
-This project is the control plane for "Aum's Journey," an interactive robotic art installation that tells the true story of Aum, a man who found his way home after being lost for 15 years, using Google's voice search. The system uses a Python-based application to interpret narrative scenes directed by the Gemini API and sends serial commands to an Arduino controller to manipulate the physical diorama.
+This project is the control plane for "Aum's Journey," an interactive robotic art installation that tells the true story of Aum, a man who found his way home after being lost for 15 years, using Google's voice search.
 
-## Core Components
+The system uses a Python application powered by the Gemini 2.5 Pro API. The AI acts as a "director," interpreting user prompts and using function calling to send serial commands to the physical hardware, orchestrating the narrative in real-time.
 
-- **Python Control Plane:** The central application that orchestrates the story and sends commands to the hardware.
-- **Gemini API:** Serves as the "director," deciding which story scene to present next based on user interaction.
-- **Arduino Controller:** The hardware brain that receives serial commands from the Python script to manage the diorama's physical components, including a robotic arm, LEDs, and servos.
+## System Architecture
 
-## The Story: Aum's Journey Home
+The installation's hardware is managed by a multi-controller setup:
 
-The story is divided into five key parts, each corresponding to a scene on the diorama:
+1.  **Python Control Plane (`main.py`)**: The central application that serves as the "brain" of the operation. It hosts the Gemini model, manages the user interaction, and sends commands to the appropriate microcontroller.
+2.  **Robotic Arm Controller**: An OpenCR board running at `57600` baud, responsible for controlling a 3-axis robotic arm with Dynamixel motors.
+3.  **Main Scene Controller**: An Arduino Mega running at `9600` baud, which acts as the master controller for the diorama's narrative scenes.
+4.  **Secondary LED Controller**: A slave Arduino Mega that controls the main logo animation, triggered by digital pin signals from the Main Scene Controller.
 
-- **Part 1: Lost in the City (S3 & S2):** Aum runs away from his childhood home and spends 15 years lost and alone on the streets of Bangkok.
-- **Part 2: A Glimmer of Hope (S11a & S12a):** Aum discovers Google voice search in an internet cafe, giving him a new sense of hope.
-- **Part 3: The Search (S13):** Using voice search and Google Earth, Aum pieces together fragmented memories of his childhood neighborhood.
-- **Part 4: The Path Home (S4a):** Aum identifies his home and contacts The Mirror Foundation to help him return.
-- **Part 5: The Reunion:** Aum is emotionally reunited with his father.
+### Original Controller Interface
+
+The following screenshot shows the original `MainController` application that was used to operate the diorama. The logs and command structures visible here were used to reverse-engineer the control logic.
+
+![Original Main Controller Interface](context/Server_Screenshot.png)
+
+## The Director's Logic (`AUM_DIRECTOR.md`)
+
+The `AUM_DIRECTOR.md` file serves as the master prompt and "show flow" for the Gemini model. It explicitly maps each narrative beat of Aum's story to a precise sequence of hardware actions by providing the AI with two Python functions to call: `trigger_diorama_scene` and `move_robotic_arm`. The coordinates and scene IDs used in this file were derived from the original software's logs and source code.
 
 ## Project Structure
 
-- **`AUM_DIRECTOR.md`**: Contains the persona and instructions for the AI director, defining the logic for both sequential and exploratory story modes.
-- **`AUM_STORY.md`**: The complete narrative of Aum's journey, serving as the source material for the AI.
-- **`context/`**: This directory holds all the assets for the story, including video clips and images.
-- **`main.py`**: The main entry point for the Python application.
-- **`*.ino`**: Arduino sketches for the microcontrollers can be found in the `context/OriginalSoftware/` subdirectories.
+-   **`main.py`**: The main entry point for the Python application.
+-   **`AUM_DIRECTOR.md`**: The system prompt for the AI director.
+-   **`AUM_STORY.md`**: The complete narrative of Aum's journey.
+-   **`context/CodeContext.md`**: A detailed technical breakdown of the Arduino firmware.
+-   **`requirements.txt`**: Lists the necessary Python dependencies.
+-   **`.env.example`**: An example file for setting up your environment variables.
+-   **`test_main.py`**: Unit tests for the application logic.
+-   **`test_integration.py`**: An integration test that makes a live call to the Gemini API.
+
+## Getting Started
+
+1.  **Create your Environment File:**
+    Rename the `.env.example` file to `.env` and add your specific configuration details.
+    ```bash
+    cp .env.example .env
+    ```
+
+2.  **Edit the `.env` file:**
+    Open the `.env` file and fill in the required values.
+    ```dotenv
+    # Your Google AI API Key for accessing Gemini
+    GEMINI_API_KEY="YOUR_API_KEY"
+
+    # The serial port for the Main Scene Controller (Baud: 9600)
+    MAIN_CONTROLLER_PORT="/dev/your_main_controller_port"
+
+    # The serial port for the Robotic Arm Controller (Baud: 57600)
+    ROBOTIC_ARM_PORT="/dev/your_robotic_arm_port"
+    ```
+    *To find your serial port names, run `ls /dev/tty.*` in your terminal before and after plugging in each device.*
+
+3.  **Install Dependencies:**
+    You will need to install Python dependencies as well as the `portaudio` library, which is required by `pyaudio`.
+
+    **On macOS (using Homebrew):**
+    ```bash
+    brew install portaudio
+    pip install -r requirements.txt
+    ```
+
+    **On Debian/Ubuntu:**
+    ```bash
+    sudo apt-get update
+    sudo apt-get install libportaudio2
+    pip install -r requirements.txt
+    ```
+
+4.  **Run the Application:**
+    The application now runs a full-duplex audio loop. **It is highly recommended to use headphones** to prevent the model's spoken output from being fed back into the microphone.
+    ```bash
+    python main.py
+    ```
+    You may need to grant microphone access to your terminal application when you run it for the first time.

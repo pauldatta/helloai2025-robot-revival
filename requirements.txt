@@ -1,0 +1,5 @@
+google-genai
+pyserial
+python-dotenv
+pyaudio
+exceptiongroup
