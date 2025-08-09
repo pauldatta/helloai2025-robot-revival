@@ -8,6 +8,10 @@ __pycache__/
 # IDE files
 .vscode/
 .idea/
+.DS_Store
 
 # Socat ports
 *_port
+
+# Keys
+.env

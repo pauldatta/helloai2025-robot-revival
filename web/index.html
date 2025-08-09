@@ -7,172 +7,193 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         :root {
-            --dark-bg: #121212;
-            --panel-bg: #1e1e1e;
-            --border-color: #333;
-            --text-color: #e0e0e0;
-            --director-color: #5c8aff;
-            --orchestrator-color: #ff9f5c;
-            --hardware-color: #5cff9f;
-            --system-color: #a95cff;
-            --error-color: #ff5c5c;
+            --dark-bg: #1a1a1a; --panel-bg: #242424; --border-color: #3a3a3a;
+            --text-color: #e0e0e0; --text-muted: #888; --accent-color: #00aaff;
         }
-        body {
-            background-color: var(--dark-bg);
-            color: var(--text-color);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
+        body { background-color: var(--dark-bg); color: var(--text-color); font-family: 'Segoe UI', sans-serif; }
         .grid-container {
             display: grid;
-            grid-template-columns: 1fr 350px;
+            grid-template-columns: 1fr 450px 320px;
             grid-template-rows: auto 1fr;
-            gap: 15px;
-            height: 95vh;
-            padding: 15px;
+            grid-template-areas: "header header header" "main systems widgets";
+            gap: 15px; height: 100vh; padding: 15px;
         }
-        .grid-header { grid-column: 1 / -1; }
-        .grid-main { grid-column: 1 / 2; display: flex; flex-direction: column; }
-        .grid-sidebar { grid-column: 2 / 3; display: flex; flex-direction: column; gap: 15px; }
+        .header { grid-area: header; }
+        .main-content { grid-area: main; }
+        .systems-column { grid-area: systems; }
+        .widgets-column { grid-area: widgets; }
         
         .panel {
-            background-color: var(--panel-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 15px;
-            display: flex;
-            flex-direction: column;
+            background-color: var(--panel-bg); border: 1px solid var(--border-color);
+            border-radius: 8px; padding: 20px; display: flex; flex-direction: column;
             overflow: hidden;
         }
-        .panel-title {
-            margin-bottom: 10px;
-            font-weight: bold;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 10px;
-        }
-        .scroll-content {
-            overflow-y: auto;
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 0.9em;
-        }
-        #log-container .log-message { white-space: pre-wrap; margin-bottom: 2px; }
-        #transcript-container .transcript-item { margin-bottom: 10px; }
-        .user-speech { color: var(--director-color); }
-        .ai-narrative { color: var(--orchestrator-color); }
+        .panel-title { margin-bottom: 15px; font-weight: bold; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
+        .scroll-content { overflow-y: auto; }
+        
+        #transcript-container { font-size: 1.1em; line-height: 1.7; }
+        .user-speech { color: var(--accent-color); }
+        .ai-narrative { color: var(--text-color); }
 
-        #status-panel .status-item { display: flex; justify-content: space-between; margin-bottom: 5px; }
-        .status-label { font-weight: bold; }
-        .status-value { padding: 2px 8px; border-radius: 5px; background-color: #333; }
+        #log-container { font-family: 'SF Mono', 'Courier New', monospace; font-size: 0.8em; color: var(--text-muted); }
+        
+        #map-widget {
+            position: relative; width: 100%; padding-bottom: 100%; border-radius: 50%;
+            background-image: url('/static/Server_Screenshot.png'); background-size: 150%;
+            background-position: 52% 50%; border: 4px solid var(--border-color);
+        }
+        #arm-indicator {
+            position: absolute; width: 20px; height: 20px; background-color: var(--accent-color);
+            border-radius: 50%; border: 2px solid white; transform: translate(-50%, -50%);
+            transition: top 0.5s ease, left 0.5s ease; top: 50%; left: 50%;
+        }
     </style>
 </head>
 <body>
     <div class="grid-container">
-        <header class="grid-header panel">
+        <header class="header panel">
             <h4 class="m-0">Aum's Journey - Mission Control</h4>
         </header>
 
-        <main class="grid-main panel">
-            <div class="panel-title">Full Log Stream</div>
-            <div id="log-container" class="scroll-content"></div>
+        <main class="main-content panel">
+            <div class="panel-title">Conversation Transcript</div>
+            <div id="transcript-container" class="scroll-content"></div>
         </main>
 
-        <aside class="grid-sidebar">
-            <div id="status-panel" class="panel">
+        <section class="systems-column d-flex flex-column gap-3">
+            <div class="panel">
                 <div class="panel-title">System Status</div>
-                <div class="status-item"><span class="status-label">Director:</span> <span id="status-director" class="status-value">...</span></div>
-                <div class="status-item"><span class="status-label">Orchestrator:</span> <span id="status-orchestrator" class="status-value">...</span></div>
-                <div class="status-item"><span class="status-label">Current Scene:</span> <span id="status-scene" class="status-value">AWAITING</span></div>
+                <div id="status-director"><strong>Director:</strong> STANDBY</div>
+                <div id="status-orchestrator"><strong>Orchestrator:</strong> IDLE</div>
+                <div id="status-scene"><strong>Current Scene:</strong> AWAITING</div>
             </div>
             <div class="panel flex-grow-1">
-                <div class="panel-title">Conversation Transcript</div>
-                <div id="transcript-container" class="scroll-content"></div>
+                <div class="panel-title">Full Log Stream</div>
+                <div id="log-container" class="scroll-content"></div>
+            </div>
+        </section>
+
+        <aside class="widgets-column d-flex flex-column gap-3">
+            <div class="panel">
+                <div class="panel-title">Diorama Map</div>
+                <div id="map-widget">
+                    <div id="arm-indicator"></div>
+                </div>
             </div>
             <div class="panel">
-                <div class="panel-title">Controls</div>
-                <button id="stop-button" class="btn btn-danger w-100">Emergency Stop</button>
+                <div class="panel-title">Scene Controls</div>
+                <div id="scene-controls" class="d-grid gap-2"></div>
             </div>
         </aside>
     </div>
 
     <script>
-        const logContainer = document.getElementById('log-container');
-        const transcriptContainer = document.getElementById('transcript-container');
-        const statusDirector = document.getElementById('status-director');
-        const statusOrchestrator = document.getElementById('status-orchestrator');
-        const statusScene = document.getElementById('status-scene');
+        // DOM Elements & State
+        const SCENES = ["AUMS_HOME", "PARK_AND_CITY", "ROAD_TO_HUA_HIN", "INTERNET_CAFE", "MAP_VISUAL", "ROAD_TO_BANGKOK"];
+        const P1_MIN = 2400, P1_MAX = 4000;
+        const P2_MIN = 60, P2_MAX = 1500;
 
-        function connect() {
-            const socket = new WebSocket(`ws://${window.location.host}/ws/logs`);
-
-            socket.onopen = () => logSystemMessage('Connected to log stream.', '#28a745');
-            socket.onclose = () => {
-                logSystemMessage('Disconnected. Retrying...', '#ffc107');
-                setTimeout(connect, 2000);
-            };
-            socket.onerror = (error) => {
-                console.error("WebSocket error:", error);
-                logSystemMessage('Connection error.', '#ff5c5c');
-            };
-            socket.onmessage = (event) => {
-                try {
-                    const logData = JSON.parse(event.data);
-                    const message = logData.message;
-                    
-                    // Full log stream
-                    const logElement = document.createElement('div');
-                    logElement.className = 'log-message';
-                    logElement.textContent = `${logData.asctime} - ${message}`;
-                    logContainer.appendChild(logElement);
-                    logContainer.scrollTop = logContainer.scrollHeight;
-
-                    // Update status and transcript panels
-                    updateDashboard(message);
-
-                } catch (e) {
-                    // Handle non-JSON system messages
-                    logSystemMessage(event.data, 'grey');
-                }
-            };
-        }
-
-        function updateDashboard(message) {
-            if (message.includes('[DIRECTOR]')) {
-                if (message.includes('User speech detected')) {
-                    addTranscriptItem(message.split(': "')[1].slice(0, -1), 'user-speech');
-                    statusDirector.textContent = "Listening...";
-                } else if (message.includes('Received narrative')) {
-                    addTranscriptItem(message.split(': "')[1].split('" |')[0], 'ai-narrative');
-                }
-            } else if (message.includes('[ORCHESTRATOR]')) {
-                if (message.includes('Updated scene to')) {
-                    const scene = message.split('"')[1];
-                    statusScene.textContent = scene;
-                    statusOrchestrator.textContent = "Idle";
-                } else if (message.includes('Calling Gemini API')) {
-                    statusOrchestrator.textContent = "Thinking...";
-                }
-            }
-        }
-
-        function addTranscriptItem(text, className) {
+        // Helper Functions
+        function addTranscriptItem(text, speaker) {
+            const transcriptContainer = document.getElementById('transcript-container');
             const item = document.createElement('div');
-            item.className = `transcript-item ${className}`;
-            const label = document.createElement('strong');
-            label.textContent = className === 'user-speech' ? 'User: ' : 'Aum: ';
-            item.appendChild(label);
-            item.append(text);
+            item.className = speaker === 'User' ? 'user-speech' : 'ai-narrative';
+            item.innerHTML = `<strong>${speaker}:</strong> ${text}`;
             transcriptContainer.appendChild(item);
             transcriptContainer.scrollTop = transcriptContainer.scrollHeight;
         }
 
-        function logSystemMessage(message, color) {
+        function logFormattedMessage(logData) {
+            const logContainer = document.getElementById('log-container');
             const logElement = document.createElement('div');
-            logElement.className = 'log-message';
-            logElement.style.color = color;
-            logElement.textContent = message;
+
+            const time = document.createElement('span');
+            time.textContent = `${logData.asctime.split(',')[1].trim()} `;
+            time.style.color = '#666';
+
+            const level = document.createElement('span');
+            level.textContent = `[${logData.levelname}] `;
+            if (logData.levelname === 'INFO') level.style.color = '#68a0ff';
+            else if (logData.levelname === 'ERROR') level.style.color = '#ff6868';
+            else level.style.color = '#ffc107';
+
+            const msg = document.createElement('span');
+            msg.textContent = logData.message;
+            msg.style.color = '#ddd';
+
+            logElement.appendChild(time);
+            logElement.appendChild(level);
+            logElement.appendChild(msg);
+            
             logContainer.appendChild(logElement);
+            logContainer.scrollTop = logContainer.scrollHeight;
         }
 
-        document.getElementById('stop-button').onclick = () => alert('Emergency Stop clicked!');
+        function mapCoordinates(p1, p2) {
+            const p1_norm = (p1 - P1_MIN) / (P1_MAX - P1_MIN);
+            const p2_norm = (p2 - P2_MIN) / (P2_MAX - P2_MIN);
+            return {
+                left: Math.max(5, Math.min(95, p1_norm * 100)),
+                top: Math.max(5, Math.min(95, p2_norm * 100))
+            };
+        }
+
+        function updateDashboard(message) {
+            if (message.includes('User speech detected')) {
+                addTranscriptItem(message.split(': "')[1].slice(0, -1), 'User');
+                document.getElementById('status-director').innerHTML = "<strong>Director:</strong> LISTENING";
+            } else if (message.includes('Received narrative')) {
+                addTranscriptItem(message.split(': "')[1].split('" |')[0], 'Aum');
+            }
+            if (message.includes('Updated scene to')) {
+                document.getElementById('status-scene').innerHTML = `<strong>Current Scene:</strong> ${message.split('"')[1]}`;
+                document.getElementById('status-orchestrator').innerHTML = "<strong>Orchestrator:</strong> IDLE";
+            }
+            if (message.includes('Calling Gemini API')) {
+                document.getElementById('status-orchestrator').innerHTML = "<strong>Orchestrator:</strong> THINKING";
+            }
+            if (message.includes("Queuing action: move_robotic_arm")) {
+                const match = /'p1': (\d+), 'p2': (\d+)/.exec(message);
+                if (match) {
+                    const p1 = parseInt(match[1], 10);
+                    const p2 = parseInt(match[2], 10);
+                    const { left, top } = mapCoordinates(p1, p2);
+                    document.getElementById('arm-indicator').style.left = `${left}%`;
+                    document.getElementById('arm-indicator').style.top = `${top}%`;
+                }
+            }
+        }
+
+        // WebSocket Connection
+        function connect() {
+            const socket = new WebSocket(`ws://${window.location.host}/ws/logs`);
+            socket.onopen = () => logFormattedMessage({ asctime: new Date().toISOString(), levelname: 'SYSTEM', message: 'Connection Established.'});
+            socket.onclose = () => setTimeout(connect, 2000);
+            socket.onerror = (error) => console.error("WebSocket error:", error);
+            socket.onmessage = (event) => {
+                try {
+                    const logData = JSON.parse(event.data);
+                    logFormattedMessage(logData);
+                    updateDashboard(logData.message);
+                } catch (e) { /* Ignore */ }
+            };
+        }
+
+        // Initial Setup
+        const sceneControls = document.getElementById('scene-controls');
+        const controlSocket = new WebSocket(`ws://${window.location.host}/ws/control`);
+        controlSocket.onopen = () => console.log("Control WebSocket connected.");
+        controlSocket.onclose = () => console.log("Control WebSocket disconnected.");
+        SCENES.forEach(scene => {
+            const btn = document.createElement('button');
+            btn.className = 'btn btn-outline-secondary';
+            btn.textContent = scene.replace(/_/g, ' ');
+            btn.onclick = () => {
+                const command = { type: "trigger_scene", scene_name: scene };
+                controlSocket.send(JSON.stringify(command));
+            };
+            sceneControls.appendChild(btn);
+        });
         
         connect();
     </script>
