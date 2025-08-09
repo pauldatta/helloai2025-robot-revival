@@ -16,13 +16,14 @@ def _execute_tool_calls(tool_calls, hardware_manager):
         function_to_call = getattr(hardware_manager, function_name, None)
         if callable(function_to_call):
             function_args = dict(tool_call.args)
-            print(f"[ORCHESTRATOR] ---> Executing tool: {function_name}({function_args})")
+            print(f"[ORCHESTRATOR] ---> Executing tool call: {function_name}({function_args})")
             function_to_call(**function_args)
         else:
-            print(f"[ORCHESTRATOR] Error: Model suggested unknown tool '{function_name}'")
+            print(f"[ORCHESTRATOR] ERROR: Model suggested unknown tool '{function_name}'")
 
 def _get_model_response(client, system_prompt, prompt):
     """Sends a single, intelligent request to the Gemini API."""
+    print("[ORCHESTRATOR] ---> Calling Gemini API.")
     tools = types.Tool(function_declarations=[
         trigger_diorama_scene_declaration,
         move_robotic_arm_declaration
@@ -47,7 +48,7 @@ def _parse_json_from_text(text: str):
     try:
         return json.loads(text)
     except json.JSONDecodeError:
-        print(f"[ORCHESTRATOR] Error decoding JSON from text: {text}")
+        print(f"[ORCHESTRATOR] ERROR: Could not decode JSON from model response: {text}")
         return None
 
 # --- Main Orchestrator Class ---
@@ -60,11 +61,11 @@ class StatefulOrchestrator:
         with open("AUM_ORCHESTRATOR.md", "r") as f:
             self.system_prompt = f.read()
         self.current_scene = "AWAITING_MODE_SELECTION"
-        print(f"[ORCHESTRATOR] Initialized. Current scene: {self.current_scene}")
+        print(f"[ORCHESTRATOR] Initialized. Start scene: {self.current_scene}")
 
     def process_user_command(self, user_text: str):
         """Processes user text, executes tools, and returns a narrative in a single step."""
-        print(f"[ORCHESTRATOR] Processing command. Scene: '{self.current_scene}', Input: '{user_text}'")
+        print(f"[ORCHESTRATOR] ---> Received command: \"{user_text}\" | Current Scene: {self.current_scene}")
         prompt = f"Current Scene: {self.current_scene}\nUser Speech: \"{user_text}\""
         
         try:
@@ -76,6 +77,8 @@ class StatefulOrchestrator:
             tool_calls = []
             if candidate.content and candidate.content.parts:
                 tool_calls = [part.function_call for part in candidate.content.parts if part.function_call]
+            
+            print(f"[ORCHESTRATOR] <--- Received {len(tool_calls)} tool call(s) from API.")
             _execute_tool_calls(tool_calls, self.hardware)
 
             # 3. Extract and parse the JSON narrative
@@ -83,22 +86,22 @@ class StatefulOrchestrator:
             response_data = _parse_json_from_text(text_part)
             
             if not response_data:
-                print("[ORCHESTRATOR] Failed to get a valid JSON narrative. Using fallback.")
+                print("[ORCHESTRATOR] ERROR: Failed to get a valid JSON narrative. Using fallback.")
                 return "I'm not sure what to say next.", self.current_scene
 
             # 4. Update state and return the narrative
             narrative = response_data.get("narrative", "I'm speechless.")
             self.current_scene = response_data.get("next_scene", self.current_scene)
 
-            print(f"[ORCHESTRATOR] <--- Response: '{narrative}'. New scene: {self.current_scene}")
+            print(f"[ORCHESTRATOR] <--- Updated scene to \"{self.current_scene}\". Returning narrative to Director.")
             return narrative, self.current_scene
 
         except Exception as e:
-            print(f"[ORCHESTRATOR] A critical error occurred: {e}")
+            print(f"[ORCHESTRATOR] CRITICAL_ERROR: {e}")
             return "I seem to have gotten my wires crossed. Could you try that again?", self.current_scene
 
 if __name__ == '__main__':
     orchestrator = StatefulOrchestrator()
-    print("\n--- Simulating Initial Greeting ---")
+    print("\n--- Orchestrator Smoke Test ---")
     narrative, _ = orchestrator.process_user_command("Hello")
-    print(f"Spoken to user: {narrative}")
+    print(f"Narrative Output: {narrative}")
