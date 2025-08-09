@@ -3,7 +3,7 @@ import json
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
-from hardware_controller import HardwareManager, trigger_diorama_scene_declaration, move_robotic_arm_declaration
+from .hardware_controller import HardwareManager, trigger_diorama_scene_declaration, move_robotic_arm_declaration
 
 # --- Modular Functions for Core Logic ---
 
@@ -58,7 +58,7 @@ class StatefulOrchestrator:
     def __init__(self):
         self.client = genai.Client()
         self.hardware = HardwareManager()
-        with open("AUM_ORCHESTRATOR.md", "r") as f:
+        with open("prompts/AUM_ORCHESTRATOR.md", "r") as f:
             self.system_prompt = f.read()
         self.current_scene = "AWAITING_MODE_SELECTION"
         print(f"[ORCHESTRATOR] Initialized. Start scene: {self.current_scene}")
