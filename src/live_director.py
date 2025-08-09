@@ -6,7 +6,7 @@ from google import genai
 from google.genai import types
 
 # Import the new orchestrator and the hardware controller for closing ports
-from orchestrator import StatefulOrchestrator
+from .orchestrator import StatefulOrchestrator
 
 # --- Audio Configuration ---
 FORMAT = pyaudio.paInt16
