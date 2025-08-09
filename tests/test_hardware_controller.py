@@ -1,17 +1,21 @@
 import unittest
 from unittest.mock import patch, MagicMock
 import os
+import sys
+
+# Add the src directory to the Python path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Set dummy environment variables for testing before importing the module
 os.environ['AUM_ENVIRONMENT'] = 'dev'
 os.environ['MAIN_CONTROLLER_PORT_EMULATOR'] = './test_main_port'
 os.environ['ROBOTIC_ARM_PORT_EMULATOR'] = './test_arm_port'
 
-from hardware_controller import HardwareManager
+from src.hardware_controller import HardwareManager
 
 class TestHardwareManager(unittest.TestCase):
 
-    @patch('hardware_controller.SerialCommunicator')
+    @patch('src.hardware_controller.SerialCommunicator')
     def setUp(self, MockSerialCommunicator):
         """Set up a new HardwareManager instance before each test."""
         # Create mock instances for the two controllers
@@ -52,7 +56,7 @@ class TestHardwareManager(unittest.TestCase):
         # Check that send_command was NOT called
         self.mock_main_controller.send_command.assert_not_called()
         # Check that an error message was returned
-        self.assertIn("Error: Invalid scene_command_id", result)
+        self.assertIn("[HARDWARE] VALIDATION_ERROR: Invalid scene_command_id", result)
         print("\n[TEST] Invalid diorama scene trigger is handled correctly.")
 
     def test_move_robotic_arm_valid(self):
@@ -76,7 +80,7 @@ class TestHardwareManager(unittest.TestCase):
         # Check that send_command was NOT called
         self.mock_arm_controller.send_command.assert_not_called()
         # Check that an error message was returned
-        self.assertIn("Error: Invalid p1 position", result)
+        self.assertIn("[HARDWARE] VALIDATION_ERROR: Invalid p1 position", result)
         print("\n[TEST] Invalid robotic arm position is handled correctly.")
 
     def test_close_all_ports(self):

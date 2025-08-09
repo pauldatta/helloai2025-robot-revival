@@ -1,10 +1,15 @@
 import unittest
 from unittest.mock import patch, MagicMock, mock_open
 import json
+import sys
+import os
 from google.genai import types
 
+# Add the src directory to the Python path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 # The module we are testing
-from orchestrator import StatefulOrchestrator, _parse_json_from_text
+from src.orchestrator import StatefulOrchestrator, _parse_json_from_text
 
 class TestOrchestrator(unittest.TestCase):
 
@@ -15,12 +20,12 @@ class TestOrchestrator(unittest.TestCase):
         self.mock_file = self.mock_file_patcher.start()
 
         # Patch the HardwareManager to prevent real hardware calls
-        self.mock_hw_manager_patcher = patch('orchestrator.HardwareManager')
+        self.mock_hw_manager_patcher = patch('src.orchestrator.HardwareManager')
         self.mock_hw_manager_class = self.mock_hw_manager_patcher.start()
         self.mock_hw_manager_instance = self.mock_hw_manager_class.return_value
 
         # Patch the genai Client
-        self.mock_genai_client_patcher = patch('orchestrator.genai.Client')
+        self.mock_genai_client_patcher = patch('src.orchestrator.genai.Client')
         self.mock_genai_client_class = self.mock_genai_client_patcher.start()
         self.mock_genai_client_instance = self.mock_genai_client_class.return_value
 

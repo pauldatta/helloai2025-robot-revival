@@ -109,7 +109,7 @@ class AumDirectorApp:
         client = genai.Client()
 
         # Load the system prompt for the Live Director
-        with open("AUM_DIRECTOR.md", "r") as f:
+        with open("prompts/AUM_DIRECTOR.md", "r") as f:
             system_prompt = f.read()
         
         # Define the tool schema for the one and only tool the director uses.
