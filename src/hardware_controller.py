@@ -45,11 +45,12 @@ class SerialCommunicator:
                 await asyncio.to_thread(self.ser.write, full_command.encode('utf-8'))
                 print(f"[HARDWARE] ---> Sent to {self.name}: \"{full_command.strip()}\"")
                 
-                if self.name == "Robotic Arm Controller":
-                    await asyncio.sleep(0.1) # Give the emulator a moment to respond
-                    # Run the blocking readline call in a separate thread
-                    response = await asyncio.to_thread(self.ser.readline)
-                    response_str = response.decode('utf-8').strip()
+                # Always read a line back to prevent the buffer from filling up and blocking.
+                # The serial port has a timeout, so this won't block forever.
+                await asyncio.sleep(0.1) 
+                response = await asyncio.to_thread(self.ser.readline)
+                response_str = response.decode('utf-8').strip()
+                if response_str:
                     print(f"[HARDWARE] <--- Received from {self.name}: \"{response_str}\"")
 
                 return f"Command '{command}' sent to {self.name}."
@@ -127,44 +128,16 @@ class HardwareManager:
         command = f"3 {velocity} {velocity} {velocity} {acceleration} {acceleration} {acceleration} {p1} {p2} {p3}"
         return await self.robotic_arm_controller.send_command(command)
 
+    async def play_video(self, video_file: str):
+        """Plays a video file on the tablet. Placeholder for now."""
+        print(f"[HARDWARE] MOCK_ACTION: Playing video '{video_file}' on tablet.")
+        # In the future, this would send a command to a media player
+        await asyncio.sleep(1) # Simulate time to start video
+        return f"Video '{video_file}' is now playing."
+
     async def close_all_ports(self):
         """Closes all managed serial connections."""
         await asyncio.gather(
             self.main_scene_controller.close(),
             self.robotic_arm_controller.close()
         )
-
-
-# --- Function Declarations for Gemini API ---
-# These remain at the module level as they are static definitions for the API.
-
-trigger_diorama_scene_declaration = FunctionDeclaration(
-    name="trigger_diorama_scene",
-    description="Triggers a specific scene on the diorama by sending a command ID.",
-    parameters={
-        "type": "object",
-        "properties": {
-            "scene_command_id": {
-                "type": "integer",
-                "description": "The command ID (1-15) for the scene."
-            }
-        },
-        "required": ["scene_command_id"]
-    }
-)
-
-move_robotic_arm_declaration = FunctionDeclaration(
-    name="move_robotic_arm",
-    description="Moves the 6-axis robotic arm to a specified coordinate position.",
-    parameters={
-        "type": "object",
-        "properties": {
-            "p1": {"type": "integer", "description": "Position for axis 1 (0-4095)."},
-            "p2": {"type": "integer", "description": "Position for axis 2 (0-4095)."},
-            "p3": {"type": "integer", "description": "Position for axis 3 (0-4095)."},
-            "velocity": {"type": "integer", "description": "Movement velocity (0-1023)."},
-            "acceleration": {"type": "integer", "description": "Movement acceleration (0-254)."}
-        },
-        "required": ["p1", "p2", "p3"]
-    }
-)
