@@ -21,18 +21,18 @@ class SerialCommunicator:
 
     def _connect(self):
         """Waits for and establishes the serial connection."""
-        print(f"[{self.name}] Waiting for serial port '{self.port}'...")
+        print(f"[HARDWARE] Waiting for serial port '{self.port}' for {self.name}...")
         start_time = time.time()
         while not os.path.exists(self.port):
             if time.time() - start_time > 10:  # 10-second timeout
-                print(f"[{self.name}] Error: Timed out waiting for port '{self.port}'.")
+                print(f"[HARDWARE] ERROR: Timed out waiting for port '{self.port}'.")
                 return
             time.sleep(0.5)
         try:
             self.ser = serial.Serial(self.port, self.baudrate, timeout=1)
-            print(f"Successfully connected to {self.name} on port: {self.port}")
+            print(f"[HARDWARE] Successfully connected to {self.name} on port: {self.port}")
         except serial.SerialException as e:
-            print(f"Error opening port for {self.name}: {e}. Commands will be mocked.")
+            print(f"[HARDWARE] ERROR: Could not open port for {self.name}: {e}. Commands will be mocked.")
 
     def send_command(self, command: str):
         """Sends a command to the serial port and reads a line if it's the arm."""
@@ -40,25 +40,25 @@ class SerialCommunicator:
             try:
                 full_command = command + '\n'
                 self.ser.write(full_command.encode('utf-8'))
-                print(f"HARDWARE ACTION: Sent to {self.name}: {full_command.strip()}")
+                print(f"[HARDWARE] ---> Sent to {self.name}: \"{full_command.strip()}\"")
                 
                 # If this is the robotic arm, read the feedback to prevent blocking
                 if self.name == "Robotic Arm Controller":
                     time.sleep(0.1) # Give the emulator a moment to respond
                     response = self.ser.readline().decode('utf-8').strip()
-                    print(f"[{self.name} SAYS]: {response}")
+                    print(f"[HARDWARE] <--- Received from {self.name}: \"{response}\"")
 
                 return f"Command '{command}' sent to {self.name}."
             except serial.SerialException as e:
-                return f"Failed to send command to {self.name}: {e}"
+                return f"[HARDWARE] ERROR: Failed to send command to {self.name}: {e}"
         else:
-            print(f"HARDWARE ACTION (Mock): Port for {self.name} not available. Mock command: {command}")
+            print(f"[HARDWARE] MOCK_ACTION: Port for {self.name} not available. Mock command: \"{command}\"")
             return f"Mock command '{command}' executed for {self.name}."
 
     def close(self):
         if self.ser and self.ser.is_open:
             self.ser.close()
-            print(f"Serial connection for {self.name} closed.")
+            print(f"[HARDWARE] Serial connection for {self.name} closed.")
 
 
 class HardwareManager:
@@ -67,16 +67,16 @@ class HardwareManager:
         env = os.getenv('AUM_ENVIRONMENT', 'prod') # Default to production
         
         if env == 'dev':
-            print("[HardwareManager] Running in DEV mode. Connecting to EMULATOR ports.")
+            print("[HARDWARE] Running in DEV mode. Connecting to EMULATOR ports.")
             main_port = os.getenv('MAIN_CONTROLLER_PORT_EMULATOR', './main_controller_emu_port')
             arm_port = os.getenv('ROBOTIC_ARM_PORT_EMULATOR', './robotic_arm_emu_port')
         else:
-            print("[HardwareManager] Running in PROD mode. Connecting to REAL hardware ports.")
+            print("[HARDWARE] Running in PROD mode. Connecting to REAL hardware ports.")
             main_port = os.getenv('MAIN_CONTROLLER_PORT')
             arm_port = os.getenv('ROBOTIC_ARM_PORT')
 
         if not main_port or not arm_port:
-            print("[HardwareManager] ERROR: Serial ports not defined in environment. Halting.")
+            print("[HARDWARE] ERROR: Serial ports not defined in environment. Halting.")
             # In a real app, you might raise an exception here.
             # For this project, we'll proceed with mock connections.
             main_port = main_port or './mock_main_port'
@@ -88,17 +88,17 @@ class HardwareManager:
     def _validate_params(self, p1=None, p2=None, p3=None, velocity=None, acceleration=None, scene_command_id=None):
         """A single method to validate all possible hardware parameters."""
         if scene_command_id is not None and scene_command_id not in VALID_SCENE_IDS:
-            return f"Error: Invalid scene_command_id '{scene_command_id}'."
+            return f"[HARDWARE] VALIDATION_ERROR: Invalid scene_command_id '{scene_command_id}'."
         if p1 is not None and p1 not in VALID_POSITION_RANGE:
-            return f"Error: Invalid p1 position '{p1}'."
+            return f"[HARDWARE] VALIDATION_ERROR: Invalid p1 position '{p1}'."
         if p2 is not None and p2 not in VALID_POSITION_RANGE:
-            return f"Error: Invalid p2 position '{p2}'."
+            return f"[HARDWARE] VALIDATION_ERROR: Invalid p2 position '{p2}'."
         if p3 is not None and p3 not in VALID_POSITION_RANGE:
-            return f"Error: Invalid p3 position '{p3}'."
+            return f"[HARDWARE] VALIDATION_ERROR: Invalid p3 position '{p3}'."
         if velocity is not None and velocity not in VALID_VELOCITY_RANGE:
-            return f"Error: Invalid velocity '{velocity}'."
+            return f"[HARDWARE] VALIDATION_ERROR: Invalid velocity '{velocity}'."
         if acceleration is not None and acceleration not in VALID_ACCELERATION_RANGE:
-            return f"Error: Invalid acceleration '{acceleration}'."
+            return f"[HARDWARE] VALIDATION_ERROR: Invalid acceleration '{acceleration}'."
         return None
 
     def trigger_diorama_scene(self, scene_command_id: int):

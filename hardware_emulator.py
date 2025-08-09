@@ -17,7 +17,7 @@ class RoboticArmEmulator:
         if not self.port_name:
             raise ValueError("ROBOTIC_ARM_PORT_EMULATOR not set in .env file")
         self.ser = serial.Serial(self.port_name, 57600, timeout=0.1)
-        print(f"[ARM EMULATOR] Listening on {self.port_name}")
+        print(f"[ARM_EMU] Listening on {self.port_name}")
         sys.stdout.flush()
 
     async def listen_for_commands(self):
@@ -28,7 +28,7 @@ class RoboticArmEmulator:
                     line = self.ser.readline()
                     if line:
                         line = line.decode('utf-8').strip()
-                        print(f"[ARM EMULATOR] Received command: '{line}'")
+                        print(f"[ARM_EMU] <--- Received command: \"{line}\"")
                         sys.stdout.flush()
                         parts = line.split()
                         command_id = int(parts[0])
@@ -36,10 +36,10 @@ class RoboticArmEmulator:
                             self.position = [int(p) for p in parts[7:10]]
                         elif command_id == 4: # Move Position
                             self.position = [int(p) for p in parts[1:4]]
-                        print(f"[ARM EMULATOR] Updated position to: {self.position}")
+                        print(f"[ARM_EMU] ---> State updated. New position: {self.position}")
                         sys.stdout.flush()
             except Exception as e:
-                print(f"[ARM EMULATOR] Error reading command: {e}")
+                print(f"[ARM_EMU] ERROR: Could not process command: {e}")
                 sys.stdout.flush()
             await asyncio.sleep(0.05)
 
@@ -50,7 +50,7 @@ class RoboticArmEmulator:
                 pos_str = f"angle:{self.position[0]}|{self.position[1]}|{self.position[2]}\n"
                 self.ser.write(pos_str.encode('utf-8'))
             except Exception as e:
-                print(f"[ARM EMULATOR] Error sending update: {e}")
+                print(f"[ARM_EMU] ERROR: Could not send position update: {e}")
                 sys.stdout.flush()
             await asyncio.sleep(0.01) # 10ms interval from original code
 
@@ -65,7 +65,7 @@ class MainSceneEmulator:
         if not self.port_name:
             raise ValueError("MAIN_CONTROLLER_PORT_EMULATOR not set in .env file")
         self.ser = serial.Serial(self.port_name, 9600, timeout=0.1)
-        print(f"[SCENE EMULATOR] Listening on {self.port_name}")
+        print(f"[SCENE_EMU] Listening on {self.port_name}")
         sys.stdout.flush()
 
     async def listen_for_commands(self):
@@ -76,10 +76,10 @@ class MainSceneEmulator:
                     line = self.ser.readline()
                     if line:
                         line = line.decode('utf-8').strip()
-                        print(f"[SCENE EMULATOR] Received command: '{line}'")
+                        print(f"[SCENE_EMU] <--- Received command: \"{line}\"")
                         sys.stdout.flush()
             except Exception as e:
-                print(f"[SCENE EMULATOR] Error reading command: {e}")
+                print(f"[SCENE_EMU] ERROR: Could not process command: {e}")
                 sys.stdout.flush()
             await asyncio.sleep(0.05)
 
@@ -88,12 +88,8 @@ class MainSceneEmulator:
 
 async def main():
     """Runs both emulators concurrently."""
-    print("--- Hardware Emulator Running ---")
-    sys.stdout.flush()
-    print("This script simulates the physical Arduino and OpenCR boards.")
-    sys.stdout.flush()
-    print("Run via 'foreman start -f Procfile.dev'")
-    sys.stdout.flush()
+    print("--- Hardware Emulator ---")
+    print("Simulating physical Arduino and OpenCR boards.")
     print("Press Ctrl+C to exit.")
     sys.stdout.flush()
 
@@ -109,18 +105,18 @@ async def main():
             scene_emulator.listen_for_commands()
         )
     except serial.SerialException as e:
-        print(f"Serial Port Error: {e}")
-        sys.stdout.flush()
-        print("Is 'socat' running correctly?")
+        print(f"[EMULATOR] CRITICAL_ERROR: {e}")
+        print("[EMULATOR] Is 'socat' running correctly? Check Procfile.dev.")
         sys.stdout.flush()
     except KeyboardInterrupt:
-        print("\n--- Shutting down emulators ---")
+        print("\n--- Shutting down hardware emulator ---")
         sys.stdout.flush()
     finally:
         if arm_emulator:
             arm_emulator.close()
         if scene_emulator:
             scene_emulator.close()
+
 
 if __name__ == "__main__":
     asyncio.run(main())

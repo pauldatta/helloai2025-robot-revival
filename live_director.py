@@ -28,10 +28,10 @@ class AumDirectorApp:
         Processes the user's command by sending it to the orchestrator and
         returning the structured response.
         """
-        print(f"--- Sending command to orchestrator: '{command}'")
+        print(f"[DIRECTOR] ---> Calling Orchestrator with command: \"{command}\"")
         # The orchestrator now returns a tuple: (narrative, scene_name)
         narrative, scene_name = self.orchestrator.process_user_command(command)
-        print(f"--- Received narrative: '{narrative}', New scene: '{scene_name}'")
+        print(f"[DIRECTOR] <--- Received narrative: \"{narrative}\" | New Scene: {scene_name}")
         # We return a dictionary, which becomes the JSON response for the tool call
         return {"narrative": narrative, "scene_name": scene_name}
 
@@ -46,7 +46,7 @@ class AumDirectorApp:
             input_device_index=mic_info["index"],
             frames_per_buffer=CHUNK_SIZE,
         )
-        print("Microphone is open. Start speaking.")
+        print("[DIRECTOR] Microphone is open. Start speaking.")
         while True:
             data = await asyncio.to_thread(
                 stream.read, CHUNK_SIZE, exception_on_overflow=False
@@ -64,6 +64,7 @@ class AumDirectorApp:
             rate=RECEIVE_SAMPLE_RATE,
             output=True,
         )
+        print("[DIRECTOR] Audio output stream is open.")
         while True:
             chunk = await self.audio_in_queue.get()
             await asyncio.to_thread(stream.write, chunk)
@@ -90,7 +91,7 @@ class AumDirectorApp:
                         tool_name = call.name
                         if tool_name == "process_user_command":
                             command = call.args["command"]
-                            print(f"Tool Call: process_user_command('{command}')")
+                            print(f"[DIRECTOR] ---> User speech detected: \"{command}\"")
                             # Execute the tool and get the structured result
                             result = self.process_user_command(command)
                             # Send the entire structured result back to the model
@@ -101,7 +102,7 @@ class AumDirectorApp:
                 # Optional: Print interim transcripts for debugging
                 if response.server_content and (it := response.server_content.input_transcription):
                     if not it.finished:
-                        print(f"User (interim): {it.text}")
+                        print(f"[DIRECTOR] Interim transcript: \"{it.text}\"")
 
     async def run(self):
         """Main entry point to run the director application."""
@@ -129,8 +130,8 @@ class AumDirectorApp:
             }
         ]
 
-        print("Starting Aum's Journey Director...")
-        print("Use headphones to prevent audio feedback loops.")
+        print("--- Aum's Journey Director ---")
+        print("Initializing...")
         print("Press Ctrl+C to exit.")
 
         try:
@@ -153,16 +154,16 @@ class AumDirectorApp:
         except asyncio.CancelledError:
             pass
         except ExceptionGroup as eg:
-            print(f"An unexpected error occurred: {eg.message}")
+            print(f"[DIRECTOR] CRITICAL_ERROR: {eg.message}")
             for error in eg.exceptions:
                 print("--- Sub-exception ---")
                 traceback.print_exception(error)
                 print("---------------------")
         except Exception as e:
-            print(f"An unexpected error occurred: {e}")
+            print(f"[DIRECTOR] CRITICAL_ERROR: {e}")
             traceback.print_exc()
         finally:
             self.pya.terminate()
             if self.orchestrator and hasattr(self.orchestrator, 'hardware'):
                 self.orchestrator.hardware.close_all_ports()
-            print("Application shut down gracefully.")
+            print("--- Application shut down gracefully ---")
