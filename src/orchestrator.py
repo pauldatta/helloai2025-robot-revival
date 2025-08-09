@@ -1,5 +1,6 @@
 import os
 import json
+import asyncio
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
@@ -7,28 +8,37 @@ from .hardware_controller import HardwareManager, trigger_diorama_scene_declarat
 
 # --- Modular Functions for Core Logic ---
 
-def _execute_tool_calls(tool_calls, hardware_manager):
+async def _execute_tool_calls(tool_calls, hardware_manager):
     """Executes a list of tool calls suggested by the model."""
     if not tool_calls:
         return
+    
+    # Create a list of tasks to run concurrently
+    tasks = []
     for tool_call in tool_calls:
         function_name = tool_call.name
         function_to_call = getattr(hardware_manager, function_name, None)
         if callable(function_to_call):
             function_args = dict(tool_call.args)
             print(f"[ORCHESTRATOR] ---> Executing tool call: {function_name}({function_args})")
-            function_to_call(**function_args)
+            tasks.append(function_to_call(**function_args))
         else:
             print(f"[ORCHESTRATOR] ERROR: Model suggested unknown tool '{function_name}'")
+    
+    # Run all hardware tasks concurrently
+    if tasks:
+        await asyncio.gather(*tasks)
 
-def _get_model_response(client, system_prompt, prompt):
+async def _get_model_response(client, system_prompt, prompt):
     """Sends a single, intelligent request to the Gemini API."""
     print("[ORCHESTRATOR] ---> Calling Gemini API.")
     tools = types.Tool(function_declarations=[
         trigger_diorama_scene_declaration,
         move_robotic_arm_declaration
     ])
-    return client.models.generate_content(
+    # The generate_content call is synchronous, so we run it in a thread
+    return await asyncio.to_thread(
+        client.models.generate_content,
         model='gemini-2.5-flash',
         contents=[types.Content(role="user", parts=[types.Part(text=prompt)])],
         config=types.GenerateContentConfig(
@@ -63,14 +73,14 @@ class StatefulOrchestrator:
         self.current_scene = "AWAITING_MODE_SELECTION"
         print(f"[ORCHESTRATOR] Initialized. Start scene: {self.current_scene}")
 
-    def process_user_command(self, user_text: str):
+    async def process_user_command(self, user_text: str):
         """Processes user text, executes tools, and returns a narrative in a single step."""
         print(f"[ORCHESTRATOR] ---> Received command: \"{user_text}\" | Current Scene: {self.current_scene}")
         prompt = f"Current Scene: {self.current_scene}\nUser Speech: \"{user_text}\""
         
         try:
             # 1. Get the model's combined response (tools + text)
-            response = _get_model_response(self.client, self.system_prompt, prompt)
+            response = await _get_model_response(self.client, self.system_prompt, prompt)
             candidate = response.candidates[0]
 
             # 2. Execute any hardware actions suggested by the model
@@ -79,7 +89,7 @@ class StatefulOrchestrator:
                 tool_calls = [part.function_call for part in candidate.content.parts if part.function_call]
             
             print(f"[ORCHESTRATOR] <--- Received {len(tool_calls)} tool call(s) from API.")
-            _execute_tool_calls(tool_calls, self.hardware)
+            await _execute_tool_calls(tool_calls, self.hardware)
 
             # 3. Extract and parse the JSON narrative
             text_part = "".join(part.text for part in candidate.content.parts if part.text).strip()
@@ -88,8 +98,6 @@ class StatefulOrchestrator:
             # If there's no JSON data but there were tool calls, create a default response.
             if not response_data and tool_calls:
                 print("[ORCHESTRATOR] WARNING: No narrative returned with tool calls. Creating a default response.")
-                # We don't know the next scene, so we keep the current one.
-                # A more advanced implementation might try to infer the next scene from the tool calls.
                 response_data = {
                     "narrative": "On it.",
                     "next_scene": self.current_scene 
@@ -110,8 +118,14 @@ class StatefulOrchestrator:
             print(f"[ORCHESTRATOR] CRITICAL_ERROR: {e}")
             return "I seem to have gotten my wires crossed. Could you try that again?", self.current_scene
 
-if __name__ == '__main__':
+async def main():
+    """A simple async main function for smoke testing."""
     orchestrator = StatefulOrchestrator()
+    await orchestrator.hardware.connect_all()
     print("\n--- Orchestrator Smoke Test ---")
-    narrative, _ = orchestrator.process_user_command("Hello")
+    narrative, _ = await orchestrator.process_user_command("Hello")
     print(f"Narrative Output: {narrative}")
+    await orchestrator.hardware.close_all_ports()
+
+if __name__ == '__main__':
+    asyncio.run(main())
