@@ -30,8 +30,9 @@ The project includes a real-time web interface for monitoring and control, acces
 
 ## Getting Started
 
-### 1. First-Time Setup
-- **Install `socat`** (Required for Emulator Mode):
+### 1. Initial Setup
+
+- **Install `socat`** (Required for Emulator Mode on macOS/Linux):
   - **macOS:** `brew install socat`
   - **Linux:** `sudo apt-get install socat`
 - **Install Audio & Python Dependencies:**
@@ -39,7 +40,7 @@ The project includes a real-time web interface for monitoring and control, acces
   - **Linux:** `sudo apt-get install libportaudio2`
   - Then, install Python packages: `pip install -r requirements.txt`
 - **Install Git Hooks:**
-  - After installing the Python dependencies, activate the pre-commit hooks. This will automatically format and lint your code before each commit.
+  - This will automatically format and lint your code before each commit.
     ```bash
     pre-commit install
     ```
@@ -47,34 +48,56 @@ The project includes a real-time web interface for monitoring and control, acces
   - Copy `.env.example` to a new file named `.env`.
   - Edit `.env` and add your `GEMINI_API_KEY`.
 
-### 2. Running in Emulator Mode (for Development)
-- The application runs in **emulator mode** by default when you use `foreman`.
-  ```bash
-  source venv/bin/activate
-  foreman start -f Procfile.dev
-  ```
+### 2. Running the Application
 
-### 3. Running in Production Mode (with Hardware)
-1.  **Find Your Port Names:** Connect your hardware and find the device paths (e.g., by running `ls /dev/tty.*`).
-2.  **Configure `.env`:**
+#### Development (Emulator Mode)
+
+For local development without physical hardware, the application runs in an emulated mode. This setup uses `socat` to create virtual serial ports.
+
+1.  **Activate Virtual Environment:**
+    ```bash
+    source venv/bin/activate
+    ```
+2.  **Start Services with Foreman:**
+    The `Procfile.dev` defines all the services needed for emulation: the web server, the hardware emulator, the virtual ports, and the main director application.
+    ```bash
+    foreman start -f Procfile.dev
+    ```
+    The web interface will be available at `http://localhost:8000`.
+
+#### Production (with Hardware)
+
+When running with the physical Arduino hardware, the application requires a different setup.
+
+1.  **Configure Environment:**
     - Open your `.env` file.
-    - Set the environment to production: `AUM_ENVIRONMENT="prod"`
-    - Set the correct port paths for your hardware (e.g., `MAIN_CONTROLLER_PORT="/dev/tty.usbmodem12345"`).
-3.  **Run the Application:**
-    - Start the main application directly as a module from the project root.
+    - Set the environment to production: `AUM_ENVIRONMENT="prod"`.
+    - Connect your hardware and find the device paths (e.g., by running `ls /dev/tty.*` or `ls /dev/cu.*` on macOS).
+    - Set the correct port paths for your hardware in the `.env` file (e.g., `MAIN_CONTROLLER_PORT="/dev/tty.usbmodem12345"` and `ROBOTIC_ARM_PORT="/dev/tty.usbmodemABCDE"`).
+
+2.  **Run with Foreman (Recommended):**
+    The `Procfile.prod` is configured to run the necessary processes for a production environment (the web server and the director). This is the standard way to run the application for deployment or production testing.
+    ```bash
+    source venv/bin/activate
+    # Ensure AUM_ENVIRONMENT is set to "prod" in your .env file
+    foreman start -f Procfile.prod
+    ```
+
+3.  **Run Manually (Alternative):**
+    If you prefer not to use `foreman`, you can run the web server and the director in two separate terminal windows.
+
+    - **Terminal 1: Start the Web Server**
+      ```bash
+      source venv/bin/activate
+      uvicorn web.server:app --host 0.0.0.0 --port 8000
+      ```
+    - **Terminal 2: Start the Director**
       ```bash
       source venv/bin/activate
       python -m src.main
       ```
 
-#### Using Foreman (for Production Deployment)
-- If you are deploying to a platform that uses `Procfile`s (like Heroku), you can use the `Procfile.prod`.
-  ```bash
-  # Ensure AUM_ENVIRONMENT is set to "prod" in your environment variables
-  foreman start -f Procfile.prod
-  ```
-
-### 4. Running Tests
+### 3. Running Tests
 - To verify the application's logic, run the unit tests:
   ```bash
   source venv/bin/activate
