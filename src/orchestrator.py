@@ -85,6 +85,16 @@ class StatefulOrchestrator:
             text_part = "".join(part.text for part in candidate.content.parts if part.text).strip()
             response_data = _parse_json_from_text(text_part)
             
+            # If there's no JSON data but there were tool calls, create a default response.
+            if not response_data and tool_calls:
+                print("[ORCHESTRATOR] WARNING: No narrative returned with tool calls. Creating a default response.")
+                # We don't know the next scene, so we keep the current one.
+                # A more advanced implementation might try to infer the next scene from the tool calls.
+                response_data = {
+                    "narrative": "On it.",
+                    "next_scene": self.current_scene 
+                }
+
             if not response_data:
                 print("[ORCHESTRATOR] ERROR: Failed to get a valid JSON narrative. Using fallback.")
                 return "I'm not sure what to say next.", self.current_scene
