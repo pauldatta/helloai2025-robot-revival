@@ -2,20 +2,23 @@
 
 This project is the control plane for "Aum's Journey," an interactive robotic art installation that tells the true story of Aum, a man who found his way home after being lost for 15 years, using Google's voice search.
 
-The system uses a two-tiered AI architecture powered by the Gemini API. A voice-activated **Live Director** handles real-time conversation, while a stateful **Orchestrator** interprets user intent, manages the story's progression, and controls the physical hardware.
+The system uses a voice-activated AI architecture powered by the Gemini API. A **Live Director** handles real-time conversation, passing the user's speech to a stateful **Orchestrator**. The Orchestrator determines the user's desired scene, generates a narrative, and triggers all corresponding hardware actions.
 
 ## System Architecture
 
-The application's logic is separated into a voice interface and a control plane. The **Live Director** captures the user's speech and passes it to the **Orchestrator**. The Orchestrator then uses the Gemini API to decide which hardware actions to take and what narrative to speak, passing the narrative back to the Director to be spoken aloud.
+The application's logic is decoupled into a voice interface, a control plane, and a hardware action map.
+
+1.  **Live Director (`live_director.py`):** Captures the user's speech and acts as the text-to-speech engine for the AI's narrative. It is a pure voice interface.
+2.  **Orchestrator (`orchestrator.py`):** The "brain" of the operation. It takes the user's speech, calls the Gemini API to determine the `next_scene`, and then executes all hardware actions associated with that scene.
+3.  **Scene-to-Action Mapping (`orchestrator.py`):** A simple Python dictionary (`SCENE_ACTIONS`) maps scene names to a list of hardware commands. This decouples the AI from the hardware, making it incredibly easy to add new scenes or actions (e.g., video playback, smoke machines) without changing the AI's prompt or logic.
 
 ![System Architecture Diagram](context/new_architecture_diagram.svg)
 
 ## Project Structure
 
-The project is organized into the following directories:
--   `src/`: Contains all the core Python source code for the application.
--   `prompts/`: Holds the system prompts that define the behavior of the AI director and orchestrator.
--   `tests/`: Contains the unit tests for the application.
+-   `src/`: Contains all the core Python source code.
+-   `prompts/`: Holds the system prompt that defines the AI's storytelling and state-management behavior.
+-   `tests/`: Contains unit tests.
 -   `context/`: Contains story context, diagrams, and original hardware code.
 
 ## Getting Started
@@ -51,24 +54,6 @@ The project is organized into the following directories:
       source venv/bin/activate
       python -m src.main
       ```
-
-### Example Log Output
-The standardized logs clearly show the flow of information between the components.
-
-```
-[DIRECTOR] ---> User speech detected: "Show me his home."
-[DIRECTOR] ---> Calling Orchestrator with command: "Show me his home."
-[ORCHESTRATOR] ---> Received command: "Show me his home." | Current Scene: AWAITING_MODE_SELECTION
-[ORCHESTRATOR] ---> Calling Gemini API.
-[ORCHESTRATOR] <--- Received 1 tool call(s) from API.
-[ORCHESTRATOR] ---> Executing tool call: move_robotic_arm({'p1': 2468, 'p2': 68, 'p3': 3447})
-[HARDWARE] ---> Sent to Robotic Arm Controller: "3 50 50 50 5 5 5 2468 68 3447"
-[ARM_EMU] <--- Received command: "3 50 50 50 5 5 5 2468 68 3447"
-[ARM_EMU] ---> State updated. New position: [2468, 68, 3447]
-[HARDWARE] <--- Received from Robotic Arm Controller: "angle:2468|68|3447"
-[ORCHESTRATOR] <--- Updated scene to "AUMS_HOME". Returning narrative to Director.
-[DIRECTOR] <--- Received narrative: "Aum ran away from this home when he was just seven years old." | New Scene: AUMS_HOME
-```
 
 ### 4. Running Tests
 - To verify the application's logic, run the unit tests:
