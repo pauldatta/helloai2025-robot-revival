@@ -3,7 +3,6 @@ import json
 import asyncio
 from google import genai
 from google.genai import types
-from dotenv import load_dotenv
 from .hardware_controller import HardwareManager
 
 # --- Scene to Action Mapping ---
@@ -13,7 +12,10 @@ SCENE_ACTIONS = {
     "AUMS_HOME": [
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 2}},
         {"action": "move_robotic_arm", "params": {"p1": 2468, "p2": 68, "p3": 3447}},
-        {"action": "play_video", "params": {"video_file": "part1_lost_in_the_city.mp4"}},
+        {
+            "action": "play_video",
+            "params": {"video_file": "part1_lost_in_the_city.mp4"},
+        },
     ],
     "PARK_AND_CITY": [
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 4}},
@@ -51,6 +53,7 @@ SCENE_ACTIONS = {
 
 # --- Modular Functions for Core Logic ---
 
+
 async def _execute_scene_actions(scene_name, hardware_manager):
     """Looks up a scene in the SCENE_ACTIONS map and executes all actions."""
     actions_to_run = SCENE_ACTIONS.get(scene_name)
@@ -73,12 +76,16 @@ async def _execute_scene_actions(scene_name, hardware_manager):
             print(f"[ORCHESTRATOR] ---> Queuing action: {action_name}({params})")
             tasks.append(function_to_call(**params))
         else:
-            print(f"[ORCHESTRATOR] ERROR: Unknown action '{action_name}' in scene '{scene_name}'")
+            print(
+                f"[ORCHESTRATOR] ERROR: Unknown action '{action_name}' in scene '{scene_name}'"
+            )
 
     # Run all hardware tasks concurrently with a timeout
     if tasks:
         try:
-            print(f"[ORCHESTRATOR] ---> Executing {len(tasks)} action(s) for scene '{scene_name}'...")
+            print(
+                f"[ORCHESTRATOR] ---> Executing {len(tasks)} action(s) for scene '{scene_name}'..."
+            )
             await asyncio.wait_for(asyncio.gather(*tasks), timeout=10.0)
         except asyncio.TimeoutError:
             print("[ORCHESTRATOR] ERROR: A hardware operation timed out.")
@@ -92,18 +99,21 @@ async def _get_model_response(client, system_prompt, prompt):
         response_mime_type="application/json",
         candidate_count=1,
         temperature=0.7,
-        thinking_config=types.ThinkingConfig(thinking_budget=0), # Disable thinking for lower latency
-        system_instruction=system_prompt
+        thinking_config=types.ThinkingConfig(
+            thinking_budget=0
+        ),  # Disable thinking for lower latency
+        system_instruction=system_prompt,
     )
     # The generate_content call is synchronous, so we run it in a thread
     # and wrap it with asyncio.wait_for to apply a timeout.
     api_call = asyncio.to_thread(
         client.models.generate_content,
-        model='gemini-2.5-flash',
+        model="gemini-2.5-flash",
         contents=[types.Content(role="user", parts=[types.Part(text=prompt)])],
         config=config,
     )
     return await asyncio.wait_for(api_call, timeout=8.0)
+
 
 def _parse_json_from_text(text: str):
     """Cleans and parses a JSON string that might be wrapped in markdown."""
@@ -114,13 +124,18 @@ def _parse_json_from_text(text: str):
     try:
         return json.loads(text)
     except json.JSONDecodeError:
-        print(f"[ORCHESTRATOR] ERROR: Could not decode JSON from model response: {text}")
+        print(
+            f"[ORCHESTRATOR] ERROR: Could not decode JSON from model response: {text}"
+        )
         return None
+
 
 # --- Main Orchestrator Class ---
 
+
 class StatefulOrchestrator:
     """Manages story state via a single, intelligent API call."""
+
     def __init__(self):
         api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
@@ -138,19 +153,25 @@ class StatefulOrchestrator:
         Processes user text, determines the next scene, returns the narrative immediately,
         and executes hardware actions in the background.
         """
-        print(f"[ORCHESTRATOR] ---> Received command: \"{user_text}\" | Current Scene: {self.current_scene}")
-        prompt = f"Current Scene: {self.current_scene}\nUser Speech: \"{user_text}\""
-        
+        print(
+            f'[ORCHESTRATOR] ---> Received command: "{user_text}" | Current Scene: {self.current_scene}'
+        )
+        prompt = f'Current Scene: {self.current_scene}\nUser Speech: "{user_text}"'
+
         try:
             # 1. Get the model's response (narrative + next_scene)
-            response = await _get_model_response(self.client, self.system_prompt, prompt)
-            
+            response = await _get_model_response(
+                self.client, self.system_prompt, prompt
+            )
+
             # 2. Extract and parse the JSON narrative
             raw_text = response.text
             response_data = _parse_json_from_text(raw_text)
-            
+
             if not response_data:
-                print("[ORCHESTRATOR] ERROR: Failed to get a valid JSON narrative. Using fallback.")
+                print(
+                    "[ORCHESTRATOR] ERROR: Failed to get a valid JSON narrative. Using fallback."
+                )
                 return "I'm not sure what to say next.", self.current_scene
 
             # 3. Update state and get narrative
@@ -159,20 +180,31 @@ class StatefulOrchestrator:
 
             # 4. If the scene has changed, start the hardware actions in the background.
             if next_scene != self.current_scene:
-                task = asyncio.create_task(_execute_scene_actions(next_scene, self.hardware))
+                task = asyncio.create_task(
+                    _execute_scene_actions(next_scene, self.hardware)
+                )
                 self.background_tasks.add(task)
                 task.add_done_callback(self.background_tasks.discard)
 
             self.current_scene = next_scene
-            print(f"[ORCHESTRATOR] <--- Updated scene to \"{self.current_scene}\". Returning narrative immediately.")
+            print(
+                f'[ORCHESTRATOR] <--- Updated scene to "{self.current_scene}". Returning narrative immediately.'
+            )
             return narrative, self.current_scene
 
         except asyncio.TimeoutError:
             print("[ORCHESTRATOR] CRITICAL_ERROR: Gemini API call timed out.")
-            return "I took too long to think. Could you please try that again?", self.current_scene
+            return (
+                "I took too long to think. Could you please try that again?",
+                self.current_scene,
+            )
         except Exception as e:
             print(f"[ORCHESTRATOR] CRITICAL_ERROR: {e}")
-            return "I seem to have gotten my wires crossed. Could you try that again?", self.current_scene
+            return (
+                "I seem to have gotten my wires crossed. Could you try that again?",
+                self.current_scene,
+            )
+
 
 async def main():
     """A simple async main function for smoke testing."""
@@ -183,5 +215,6 @@ async def main():
     print(f"Narrative Output: {narrative}")
     await orchestrator.hardware.close_all_ports()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     asyncio.run(main())

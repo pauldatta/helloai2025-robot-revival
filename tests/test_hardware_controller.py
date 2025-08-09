@@ -2,21 +2,19 @@ import unittest
 from unittest.mock import patch, AsyncMock
 import os
 import sys
-import asyncio
-
-# Add the src directory to the Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-# Set dummy environment variables for testing before importing the module
-os.environ['AUM_ENVIRONMENT'] = 'dev'
-os.environ['MAIN_CONTROLLER_PORT_EMULATOR'] = './test_main_port'
-os.environ['ROBOTIC_ARM_PORT_EMULATOR'] = './test_arm_port'
-
 from src.hardware_controller import HardwareManager
 
-class TestHardwareManager(unittest.IsolatedAsyncioTestCase):
+# Add the src directory to the Python path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-    @patch('src.hardware_controller.SerialCommunicator')
+# Set dummy environment variables for testing before importing the module
+os.environ["AUM_ENVIRONMENT"] = "dev"
+os.environ["MAIN_CONTROLLER_PORT_EMULATOR"] = "./test_main_port"
+os.environ["ROBOTIC_ARM_PORT_EMULATOR"] = "./test_arm_port"
+
+
+class TestHardwareManager(unittest.IsolatedAsyncioTestCase):
+    @patch("src.hardware_controller.SerialCommunicator")
     def setUp(self, MockSerialCommunicator):
         """Set up a new HardwareManager instance before each test."""
         # Create mock instances for the two controllers
@@ -32,7 +30,7 @@ class TestHardwareManager(unittest.IsolatedAsyncioTestCase):
             return AsyncMock()
 
         MockSerialCommunicator.side_effect = side_effect
-        
+
         # Instantiate the class we are testing
         self.hardware_manager = HardwareManager()
 
@@ -51,7 +49,7 @@ class TestHardwareManager(unittest.IsolatedAsyncioTestCase):
 
     async def test_trigger_diorama_scene_invalid(self):
         """Tests an invalid call to trigger_diorama_scene."""
-        scene_id = 99 # Invalid ID
+        scene_id = 99  # Invalid ID
         result = await self.hardware_manager.trigger_diorama_scene(scene_id)
         self.mock_main_controller.send_command.assert_not_called()
         self.assertIn("[HARDWARE] VALIDATION_ERROR: Invalid scene_command_id", result)
@@ -63,7 +61,7 @@ class TestHardwareManager(unittest.IsolatedAsyncioTestCase):
         await self.hardware_manager.move_robotic_arm(p1, p2, p3)
         self.mock_arm_controller.send_command.assert_called_once()
         called_command = self.mock_arm_controller.send_command.call_args[0][0]
-        self.assertTrue(called_command.startswith('3 '))
+        self.assertTrue(called_command.startswith("3 "))
         self.assertIn(str(p1), called_command)
         self.assertIn(str(p2), called_command)
         self.assertIn(str(p3), called_command)
@@ -71,7 +69,7 @@ class TestHardwareManager(unittest.IsolatedAsyncioTestCase):
 
     async def test_move_robotic_arm_invalid_position(self):
         """Tests an invalid position call to move_robotic_arm."""
-        p1, p2, p3 = 5000, 2000, 3000 # Invalid p1
+        p1, p2, p3 = 5000, 2000, 3000  # Invalid p1
         result = await self.hardware_manager.move_robotic_arm(p1, p2, p3)
         self.mock_arm_controller.send_command.assert_not_called()
         self.assertIn("[HARDWARE] VALIDATION_ERROR: Invalid p1 position", result)
@@ -84,5 +82,6 @@ class TestHardwareManager(unittest.IsolatedAsyncioTestCase):
         self.mock_arm_controller.close.assert_called_once()
         print("\n[TEST] close_all_ports works correctly.")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()
