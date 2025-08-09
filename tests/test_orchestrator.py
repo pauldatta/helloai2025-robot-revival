@@ -7,25 +7,27 @@ import asyncio
 import time
 
 # Add the src directory to the Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 # The module we are testing
 from src.orchestrator import StatefulOrchestrator, _parse_json_from_text
 
-class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
 
+class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         # Patch the file open call
-        self.mock_file_patcher = patch('builtins.open', unittest.mock.mock_open(read_data="Mock System Prompt"))
+        self.mock_file_patcher = patch(
+            "builtins.open", unittest.mock.mock_open(read_data="Mock System Prompt")
+        )
         self.mock_file = self.mock_file_patcher.start()
 
         # Patch HardwareManager
-        self.mock_hw_manager_patcher = patch('src.orchestrator.HardwareManager')
+        self.mock_hw_manager_patcher = patch("src.orchestrator.HardwareManager")
         self.mock_hw_manager_class = self.mock_hw_manager_patcher.start()
         self.mock_hw_manager_instance = self.mock_hw_manager_class.return_value
 
         # Patch genai Client
-        self.mock_genai_client_patcher = patch('src.orchestrator.genai.Client')
+        self.mock_genai_client_patcher = patch("src.orchestrator.genai.Client")
         self.mock_genai_client_class = self.mock_genai_client_patcher.start()
         self.mock_genai_client_instance = self.mock_genai_client_class.return_value
 
@@ -54,7 +56,10 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
         """Tests that a state change correctly triggers mapped hardware actions."""
         # 1. Setup the mock response
         mock_response = MagicMock()
-        response_payload = {"narrative": "Let's go to Aum's home.", "next_scene": "AUMS_HOME"}
+        response_payload = {
+            "narrative": "Let's go to Aum's home.",
+            "next_scene": "AUMS_HOME",
+        }
         mock_response.text = json.dumps(response_payload)
         self.orchestrator.client.models.generate_content.return_value = mock_response
 
@@ -64,7 +69,9 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
         self.orchestrator.hardware.play_video = AsyncMock()
 
         # 2. Call the method
-        narrative, next_scene = await self.orchestrator.process_user_command("Show me the house")
+        narrative, next_scene = await self.orchestrator.process_user_command(
+            "Show me the house"
+        )
 
         # 3. Assert immediate results
         self.assertEqual(narrative, "Let's go to Aum's home.")
@@ -77,22 +84,33 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
             await asyncio.gather(*tasks)
 
         # 5. Assert that hardware actions were called
-        self.orchestrator.hardware.trigger_diorama_scene.assert_called_once_with(scene_command_id=2)
-        self.orchestrator.hardware.move_robotic_arm.assert_called_once_with(p1=2468, p2=68, p3=3447)
-        self.orchestrator.hardware.play_video.assert_called_once_with(video_file="part1_lost_in_the_city.mp4")
+        self.orchestrator.hardware.trigger_diorama_scene.assert_called_once_with(
+            scene_command_id=2
+        )
+        self.orchestrator.hardware.move_robotic_arm.assert_called_once_with(
+            p1=2468, p2=68, p3=3447
+        )
+        self.orchestrator.hardware.play_video.assert_called_once_with(
+            video_file="part1_lost_in_the_city.mp4"
+        )
         print("\n[TEST] Scene change correctly triggers mapped hardware actions.")
 
     async def test_no_scene_change_no_actions(self):
         """Tests that if the scene does not change, no hardware actions are triggered."""
         mock_response = MagicMock()
-        response_payload = {"narrative": "Aum is a person.", "next_scene": "AWAITING_MODE_SELECTION"}
+        response_payload = {
+            "narrative": "Aum is a person.",
+            "next_scene": "AWAITING_MODE_SELECTION",
+        }
         mock_response.text = json.dumps(response_payload)
         self.orchestrator.client.models.generate_content.return_value = mock_response
 
         self.orchestrator.hardware.trigger_diorama_scene = AsyncMock()
         self.orchestrator.hardware.move_robotic_arm = AsyncMock()
 
-        narrative, next_scene = await self.orchestrator.process_user_command("Who is Aum?")
+        narrative, next_scene = await self.orchestrator.process_user_command(
+            "Who is Aum?"
+        )
 
         self.assertEqual(narrative, "Aum is a person.")
         self.assertEqual(next_scene, "AWAITING_MODE_SELECTION")
@@ -102,16 +120,21 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
 
     async def test_api_timeout_error(self):
         """Tests the fallback mechanism when the Gemini API call times out."""
+
         # This synchronous mock will sleep, causing the asyncio.wait_for in the
         # main code to raise a TimeoutError.
         def timeout_mock(*args, **kwargs):
-            time.sleep(9) # Sleep longer than the 8s timeout
-        
+            time.sleep(9)  # Sleep longer than the 8s timeout
+
         self.orchestrator.client.models.generate_content.side_effect = timeout_mock
 
-        narrative, next_scene = await self.orchestrator.process_user_command("This will fail")
+        narrative, next_scene = await self.orchestrator.process_user_command(
+            "This will fail"
+        )
 
-        self.assertEqual(narrative, "I took too long to think. Could you please try that again?")
+        self.assertEqual(
+            narrative, "I took too long to think. Could you please try that again?"
+        )
         self.assertEqual(next_scene, "AWAITING_MODE_SELECTION")
         print("\n[TEST] API timeout error handling is correct.")
 
@@ -125,5 +148,6 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(_parse_json_from_text(""))
         print("\n[TEST] JSON parsing helper works correctly.")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

@@ -1,21 +1,4 @@
 import asyncio
-import pyaudio
-import traceback
-from exceptiongroup import ExceptionGroup
-from google import genai
-from google.genai import types
-
-# Import the new orchestrator and the hardware controller for closing ports
-from .orchestrator import StatefulOrchestrator
-
-# --- Audio Configuration ---
-FORMAT = pyaudio.paInt16
-CHANNELS = 1
-SEND_SAMPLE_RATE = 16000
-RECEIVE_SAMPLE_RATE = 24000
-CHUNK_SIZE = 1024
-
-
 import os
 import pyaudio
 import traceback
@@ -46,9 +29,11 @@ class AumDirectorApp:
         Processes the user's command by sending it to the orchestrator and
         returning the structured response. Now fully async.
         """
-        print(f"[DIRECTOR] ---> Calling Orchestrator with command: \"{command}\"")
+        print(f'[DIRECTOR] ---> Calling Orchestrator with command: "{command}"')
         narrative, scene_name = await self.orchestrator.process_user_command(command)
-        print(f"[DIRECTOR] <--- Received narrative: \"{narrative}\" | New Scene: {scene_name}")
+        print(
+            f'[DIRECTOR] <--- Received narrative: "{narrative}" | New Scene: {scene_name}'
+        )
         return {"narrative": narrative, "scene_name": scene_name}
 
     async def listen_and_send_audio(self):
@@ -105,15 +90,21 @@ class AumDirectorApp:
                         tool_name = call.name
                         if tool_name == "process_user_command":
                             command = call.args["command"]
-                            print(f"[DIRECTOR] ---> User speech detected: \"{command}\"")
+                            print(f'[DIRECTOR] ---> User speech detected: "{command}"')
                             result = await self.process_user_command(command)
                             await self.session.send_tool_response(
-                                function_responses=[types.FunctionResponse(id=call.id, name=tool_name, response=result)]
+                                function_responses=[
+                                    types.FunctionResponse(
+                                        id=call.id, name=tool_name, response=result
+                                    )
+                                ]
                             )
 
-                if response.server_content and (it := response.server_content.input_transcription):
+                if response.server_content and (
+                    it := response.server_content.input_transcription
+                ):
                     if not it.finished:
-                        print(f"[DIRECTOR] Interim transcript: \"{it.text}\"")
+                        print(f'[DIRECTOR] Interim transcript: "{it.text}"')
 
     async def run(self):
         """Main entry point to run the director application."""
@@ -124,7 +115,7 @@ class AumDirectorApp:
 
         with open("prompts/AUM_DIRECTOR.md", "r") as f:
             system_prompt = f.read()
-        
+
         tools = [
             {
                 "name": "process_user_command",
@@ -160,7 +151,7 @@ class AumDirectorApp:
                 },
             ) as session, asyncio.TaskGroup() as tg:
                 self.session = session
-                
+
                 tg.create_task(self.listen_and_send_audio())
                 tg.create_task(self.play_audio())
                 tg.create_task(self.receive_and_process())
@@ -178,6 +169,6 @@ class AumDirectorApp:
             traceback.print_exc()
         finally:
             self.pya.terminate()
-            if self.orchestrator and hasattr(self.orchestrator, 'hardware'):
+            if self.orchestrator and hasattr(self.orchestrator, "hardware"):
                 await self.orchestrator.hardware.close_all_ports()
             print("--- Application shut down gracefully ---")

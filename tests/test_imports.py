@@ -3,7 +3,8 @@ import sys
 import os
 
 # Add the src directory to the Python path to allow for imports
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 
 class TestModuleImports(unittest.TestCase):
     """
@@ -16,6 +17,7 @@ class TestModuleImports(unittest.TestCase):
         """Test that src.main can be imported."""
         try:
             from src import main
+
             self.assertIsNotNone(main)
         except ImportError as e:
             self.fail(f"Failed to import src.main: {e}")
@@ -24,6 +26,7 @@ class TestModuleImports(unittest.TestCase):
         """Test that src.live_director can be imported."""
         try:
             from src import live_director
+
             self.assertIsNotNone(live_director)
         except ImportError as e:
             self.fail(f"Failed to import src.live_director: {e}")
@@ -32,6 +35,7 @@ class TestModuleImports(unittest.TestCase):
         """Test that src.orchestrator can be imported."""
         try:
             from src import orchestrator
+
             self.assertIsNotNone(orchestrator)
         except ImportError as e:
             self.fail(f"Failed to import src.orchestrator: {e}")
@@ -40,6 +44,7 @@ class TestModuleImports(unittest.TestCase):
         """Test that src.hardware_controller can be imported."""
         try:
             from src import hardware_controller
+
             self.assertIsNotNone(hardware_controller)
         except ImportError as e:
             self.fail(f"Failed to import src.hardware_controller: {e}")
@@ -48,9 +53,11 @@ class TestModuleImports(unittest.TestCase):
         """Test that src.hardware_emulator can be imported."""
         try:
             from src import hardware_emulator
+
             self.assertIsNotNone(hardware_emulator)
         except ImportError as e:
             self.fail(f"Failed to import src.hardware_emulator: {e}")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

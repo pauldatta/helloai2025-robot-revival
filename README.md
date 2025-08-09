@@ -32,6 +32,11 @@ The application's logic is decoupled into a voice interface, a control plane, an
   - **macOS:** `brew install portaudio`
   - **Linux:** `sudo apt-get install libportaudio2`
   - Then, install Python packages: `pip install -r requirements.txt`
+- **Install Git Hooks:**
+  - After installing the Python dependencies, activate the pre-commit hooks. This will automatically format and lint your code before each commit.
+    ```bash
+    pre-commit install
+    ```
 - **Configure API Key:**
   - Copy `.env.example` to a new file named `.env`.
   - Edit `.env` and add your `GEMINI_API_KEY`.
