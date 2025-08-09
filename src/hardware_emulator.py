@@ -1,6 +1,7 @@
 import asyncio
-import serial
+import logging
 import os
+import serial
 import sys
 from dotenv import load_dotenv
 
@@ -20,7 +21,7 @@ class RoboticArmEmulator:
         if not self.port_name:
             raise ValueError("ROBOTIC_ARM_PORT_EMULATOR not set in .env file")
         self.ser = serial.Serial(self.port_name, 57600, timeout=0.1)
-        print(f"[ARM_EMU] Listening on {self.port_name}")
+        logging.info(f"[ARM_EMU] Listening on {self.port_name}")
         sys.stdout.flush()
 
     async def listen_for_commands(self):
@@ -31,7 +32,7 @@ class RoboticArmEmulator:
                     line = self.ser.readline()
                     if line:
                         line = line.decode("utf-8").strip()
-                        print(f'[ARM_EMU] <--- Received command: "{line}"')
+                        logging.info(f'[ARM_EMU] <--- Received command: "{line}"')
                         sys.stdout.flush()
                         parts = line.split()
                         command_id = int(parts[0])
@@ -44,12 +45,12 @@ class RoboticArmEmulator:
                         pos_str = f"angle:{self.position[0]}|{self.position[1]}|{self.position[2]}\n"
                         self.ser.write(pos_str.encode("utf-8"))
 
-                        print(
+                        logging.info(
                             f"[ARM_EMU] ---> State updated. New position: {self.position}"
                         )
                         sys.stdout.flush()
             except Exception as e:
-                print(f"[ARM_EMU] ERROR: Could not process command: {e}")
+                logging.error(f"[ARM_EMU] ERROR: Could not process command: {e}")
                 sys.stdout.flush()
             await asyncio.sleep(0.05)
 
@@ -62,7 +63,7 @@ class RoboticArmEmulator:
                 )
                 self.ser.write(pos_str.encode("utf-8"))
             except Exception as e:
-                print(f"[ARM_EMU] ERROR: Could not send position update: {e}")
+                logging.error(f"[ARM_EMU] ERROR: Could not send position update: {e}")
                 sys.stdout.flush()
             await asyncio.sleep(0.01)  # 10ms interval from original code
 
@@ -80,7 +81,7 @@ class MainSceneEmulator:
         if not self.port_name:
             raise ValueError("MAIN_CONTROLLER_PORT_EMULATOR not set in .env file")
         self.ser = serial.Serial(self.port_name, 9600, timeout=0.1)
-        print(f"[SCENE_EMU] Listening on {self.port_name}")
+        logging.info(f"[SCENE_EMU] Listening on {self.port_name}")
         sys.stdout.flush()
 
     async def listen_for_commands(self):
@@ -91,12 +92,12 @@ class MainSceneEmulator:
                     line = self.ser.readline()
                     if line:
                         line = line.decode("utf-8").strip()
-                        print(f'[SCENE_EMU] <--- Received command: "{line}"')
+                        logging.info(f'[SCENE_EMU] <--- Received command: "{line}"')
                         # Send a simple "OK" confirmation
                         self.ser.write(b"OK\n")
                         sys.stdout.flush()
             except Exception as e:
-                print(f"[SCENE_EMU] ERROR: Could not process command: {e}")
+                logging.error(f"[SCENE_EMU] ERROR: Could not process command: {e}")
                 sys.stdout.flush()
             await asyncio.sleep(0.05)
 
@@ -106,9 +107,9 @@ class MainSceneEmulator:
 
 async def main():
     """Runs both emulators concurrently."""
-    print("--- Hardware Emulator ---")
-    print("Simulating physical Arduino and OpenCR boards.")
-    print("Press Ctrl+C to exit.")
+    logging.info("--- Hardware Emulator ---")
+    logging.info("Simulating physical Arduino and OpenCR boards.")
+    logging.info("Press Ctrl+C to exit.")
     sys.stdout.flush()
 
     arm_emulator = None
@@ -123,11 +124,11 @@ async def main():
             scene_emulator.listen_for_commands(),
         )
     except serial.SerialException as e:
-        print(f"[EMULATOR] CRITICAL_ERROR: {e}")
-        print("[EMULATOR] Is 'socat' running correctly? Check Procfile.dev.")
+        logging.error(f"[EMULATOR] CRITICAL_ERROR: {e}")
+        logging.error("[EMULATOR] Is 'socat' running correctly? Check Procfile.dev.")
         sys.stdout.flush()
     except KeyboardInterrupt:
-        print("\n--- Shutting down hardware emulator ---")
+        logging.info("\n--- Shutting down hardware emulator ---")
         sys.stdout.flush()
     finally:
         if arm_emulator:
