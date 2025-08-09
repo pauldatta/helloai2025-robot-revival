@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 # Load environment variables from .env file at the very start
 load_dotenv()
 
-from live_director import AumDirectorApp
+from .live_director import AumDirectorApp
 
 async def main():
     """The main entry point for the application."""
