@@ -1,4 +1,5 @@
 # Aum's Journey: An Interactive Robotic Art Installation
+[![Python Tests](https://github.com/pauldatta/helloai2025-robot-revival/actions/workflows/python-tests.yml/badge.svg?branch=main)](https://github.com/pauldatta/helloai2025-robot-revival/actions/workflows/python-tests.yml)
 
 This project is the control plane for "Aum's Journey," an interactive robotic art installation that tells the true story of Aum, a man who found his way home after being lost for 15 years, using Google's voice search.
 
