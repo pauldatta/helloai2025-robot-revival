@@ -36,6 +36,11 @@ class RoboticArmEmulator:
                             self.position = [int(p) for p in parts[7:10]]
                         elif command_id == 4: # Move Position
                             self.position = [int(p) for p in parts[1:4]]
+                        
+                        # Send a confirmation/position update immediately after command
+                        pos_str = f"angle:{self.position[0]}|{self.position[1]}|{self.position[2]}\n"
+                        self.ser.write(pos_str.encode('utf-8'))
+                        
                         print(f"[ARM_EMU] ---> State updated. New position: {self.position}")
                         sys.stdout.flush()
             except Exception as e:

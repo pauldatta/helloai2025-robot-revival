@@ -130,12 +130,13 @@ class StatefulOrchestrator:
         with open("prompts/AUM_ORCHESTRATOR.md", "r") as f:
             self.system_prompt = f.read()
         self.current_scene = "AWAITING_MODE_SELECTION"
+        self.background_tasks = set()
         print(f"[ORCHESTRATOR] Initialized. Start scene: {self.current_scene}")
 
     async def process_user_command(self, user_text: str):
         """
-        Processes user text, determines the next scene, executes its actions,
-        and returns the narrative.
+        Processes user text, determines the next scene, returns the narrative immediately,
+        and executes hardware actions in the background.
         """
         print(f"[ORCHESTRATOR] ---> Received command: \"{user_text}\" | Current Scene: {self.current_scene}")
         prompt = f"Current Scene: {self.current_scene}\nUser Speech: \"{user_text}\""
@@ -156,12 +157,14 @@ class StatefulOrchestrator:
             narrative = response_data.get("narrative", "I'm speechless.")
             next_scene = response_data.get("next_scene", self.current_scene)
 
-            # 4. If the scene has changed, execute the corresponding actions
+            # 4. If the scene has changed, start the hardware actions in the background.
             if next_scene != self.current_scene:
-                await _execute_scene_actions(next_scene, self.hardware)
+                task = asyncio.create_task(_execute_scene_actions(next_scene, self.hardware))
+                self.background_tasks.add(task)
+                task.add_done_callback(self.background_tasks.discard)
 
             self.current_scene = next_scene
-            print(f"[ORCHESTRATOR] <--- Updated scene to \"{self.current_scene}\". Returning narrative to Director.")
+            print(f"[ORCHESTRATOR] <--- Updated scene to \"{self.current_scene}\". Returning narrative immediately.")
             return narrative, self.current_scene
 
         except asyncio.TimeoutError:
