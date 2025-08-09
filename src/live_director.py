@@ -16,6 +16,24 @@ RECEIVE_SAMPLE_RATE = 24000
 CHUNK_SIZE = 1024
 
 
+import os
+import pyaudio
+import traceback
+from exceptiongroup import ExceptionGroup
+from google import genai
+from google.genai import types
+
+# Import the new orchestrator and the hardware controller for closing ports
+from .orchestrator import StatefulOrchestrator
+
+# --- Audio Configuration ---
+FORMAT = pyaudio.paInt16
+CHANNELS = 1
+SEND_SAMPLE_RATE = 16000
+RECEIVE_SAMPLE_RATE = 24000
+CHUNK_SIZE = 1024
+
+
 class AumDirectorApp:
     def __init__(self):
         self.orchestrator = StatefulOrchestrator()
@@ -99,7 +117,10 @@ class AumDirectorApp:
 
     async def run(self):
         """Main entry point to run the director application."""
-        client = genai.Client()
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            raise ValueError("GEMINI_API_KEY environment variable not set.")
+        client = genai.Client(api_key=api_key)
 
         with open("prompts/AUM_DIRECTOR.md", "r") as f:
             system_prompt = f.read()

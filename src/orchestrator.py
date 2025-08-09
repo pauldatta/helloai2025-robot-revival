@@ -4,50 +4,106 @@ import asyncio
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
-from .hardware_controller import HardwareManager, trigger_diorama_scene_declaration, move_robotic_arm_declaration
+from .hardware_controller import HardwareManager
+
+# --- Scene to Action Mapping ---
+# This dictionary maps a scene name to a list of hardware actions.
+# This makes it easy to add new actions (like video) without changing the core logic.
+SCENE_ACTIONS = {
+    "AUMS_HOME": [
+        {"action": "trigger_diorama_scene", "params": {"scene_command_id": 2}},
+        {"action": "move_robotic_arm", "params": {"p1": 2468, "p2": 68, "p3": 3447}},
+        {"action": "play_video", "params": {"video_file": "part1_lost_in_the_city.mp4"}},
+    ],
+    "PARK_AND_CITY": [
+        {"action": "trigger_diorama_scene", "params": {"scene_command_id": 4}},
+        {"action": "move_robotic_arm", "params": {"p1": 2457, "p2": 79, "p3": 3447}},
+        {"action": "play_video", "params": {"video_file": "part2_glimmer_of_hope.mp4"}},
+    ],
+    "ROAD_TO_HUA_HIN": [
+        {"action": "trigger_diorama_scene", "params": {"scene_command_id": 6}},
+        {"action": "move_robotic_arm", "params": {"p1": 2457, "p2": 68, "p3": 3436}},
+    ],
+    "INTERNET_CAFE": [
+        {"action": "trigger_diorama_scene", "params": {"scene_command_id": 8}},
+        {"action": "move_robotic_arm", "params": {"p1": 2446, "p2": 68, "p3": 3436}},
+        {"action": "play_video", "params": {"video_file": "part3_the_search.mp4"}},
+    ],
+    "MAP_VISUAL": [
+        {"action": "trigger_diorama_scene", "params": {"scene_command_id": 10}},
+        {"action": "move_robotic_arm", "params": {"p1": 4000, "p2": 1500, "p3": 3800}},
+        {"action": "play_video", "params": {"video_file": "part4_the_path_home.mp4"}},
+    ],
+    "ROAD_TO_BANGKOK": [
+        {"action": "trigger_diorama_scene", "params": {"scene_command_id": 12}},
+        {"action": "move_robotic_arm", "params": {"p1": 3800, "p2": 1300, "p3": 3700}},
+        {"action": "play_video", "params": {"video_file": "part5_the_reunion.mp4"}},
+    ],
+    # Guided mode scenes just reference the free-roam scenes
+    "GUIDED_MODE_AUMS_HOME": "AUMS_HOME",
+    "GUIDED_MODE_PARK_AND_CITY": "PARK_AND_CITY",
+    "GUIDED_MODE_ROAD_TO_HUA_HIN": "ROAD_TO_HUA_HIN",
+    "GUIDED_MODE_INTERNET_CAFE": "INTERNET_CAFE",
+    "GUIDED_MODE_MAP_VISUAL": "MAP_VISUAL",
+    "GUIDED_MODE_ROAD_TO_BANGKOK": "ROAD_TO_BANGKOK",
+}
+
 
 # --- Modular Functions for Core Logic ---
 
-async def _execute_tool_calls(tool_calls, hardware_manager):
-    """Executes a list of tool calls suggested by the model."""
-    if not tool_calls:
+async def _execute_scene_actions(scene_name, hardware_manager):
+    """Looks up a scene in the SCENE_ACTIONS map and executes all actions."""
+    actions_to_run = SCENE_ACTIONS.get(scene_name)
+
+    # Handle scene aliases (e.g., for guided mode)
+    if isinstance(actions_to_run, str):
+        actions_to_run = SCENE_ACTIONS.get(actions_to_run)
+
+    if not actions_to_run:
+        print(f"[ORCHESTRATOR] No actions defined for scene: {scene_name}")
         return
-    
-    # Create a list of tasks to run concurrently
+
     tasks = []
-    for tool_call in tool_calls:
-        function_name = tool_call.name
-        function_to_call = getattr(hardware_manager, function_name, None)
+    for item in actions_to_run:
+        action_name = item.get("action")
+        params = item.get("params", {})
+        function_to_call = getattr(hardware_manager, action_name, None)
+
         if callable(function_to_call):
-            function_args = dict(tool_call.args)
-            print(f"[ORCHESTRATOR] ---> Executing tool call: {function_name}({function_args})")
-            tasks.append(function_to_call(**function_args))
+            print(f"[ORCHESTRATOR] ---> Queuing action: {action_name}({params})")
+            tasks.append(function_to_call(**params))
         else:
-            print(f"[ORCHESTRATOR] ERROR: Model suggested unknown tool '{function_name}'")
-    
-    # Run all hardware tasks concurrently
+            print(f"[ORCHESTRATOR] ERROR: Unknown action '{action_name}' in scene '{scene_name}'")
+
+    # Run all hardware tasks concurrently with a timeout
     if tasks:
-        await asyncio.gather(*tasks)
+        try:
+            print(f"[ORCHESTRATOR] ---> Executing {len(tasks)} action(s) for scene '{scene_name}'...")
+            await asyncio.wait_for(asyncio.gather(*tasks), timeout=10.0)
+        except asyncio.TimeoutError:
+            print("[ORCHESTRATOR] ERROR: A hardware operation timed out.")
+
 
 async def _get_model_response(client, system_prompt, prompt):
     """Sends a single, intelligent request to the Gemini API."""
     print("[ORCHESTRATOR] ---> Calling Gemini API.")
-    tools = types.Tool(function_declarations=[
-        trigger_diorama_scene_declaration,
-        move_robotic_arm_declaration
-    ])
+    # The model's only job is to return JSON, so no tools are needed.
+    config = types.GenerateContentConfig(
+        response_mime_type="application/json",
+        candidate_count=1,
+        temperature=0.7,
+        thinking_config=types.ThinkingConfig(thinking_budget=0), # Disable thinking for lower latency
+        system_instruction=system_prompt
+    )
     # The generate_content call is synchronous, so we run it in a thread
-    return await asyncio.to_thread(
+    # and wrap it with asyncio.wait_for to apply a timeout.
+    api_call = asyncio.to_thread(
         client.models.generate_content,
         model='gemini-2.5-flash',
         contents=[types.Content(role="user", parts=[types.Part(text=prompt)])],
-        config=types.GenerateContentConfig(
-            system_instruction=system_prompt,
-            tools=[tools],
-            candidate_count=1,
-            temperature=0.7,
-        )
+        config=config,
     )
+    return await asyncio.wait_for(api_call, timeout=8.0)
 
 def _parse_json_from_text(text: str):
     """Cleans and parses a JSON string that might be wrapped in markdown."""
@@ -66,7 +122,10 @@ def _parse_json_from_text(text: str):
 class StatefulOrchestrator:
     """Manages story state via a single, intelligent API call."""
     def __init__(self):
-        self.client = genai.Client()
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            raise ValueError("GEMINI_API_KEY environment variable not set.")
+        self.client = genai.Client(api_key=api_key)
         self.hardware = HardwareManager()
         with open("prompts/AUM_ORCHESTRATOR.md", "r") as f:
             self.system_prompt = f.read()
@@ -74,46 +133,40 @@ class StatefulOrchestrator:
         print(f"[ORCHESTRATOR] Initialized. Start scene: {self.current_scene}")
 
     async def process_user_command(self, user_text: str):
-        """Processes user text, executes tools, and returns a narrative in a single step."""
+        """
+        Processes user text, determines the next scene, executes its actions,
+        and returns the narrative.
+        """
         print(f"[ORCHESTRATOR] ---> Received command: \"{user_text}\" | Current Scene: {self.current_scene}")
         prompt = f"Current Scene: {self.current_scene}\nUser Speech: \"{user_text}\""
         
         try:
-            # 1. Get the model's combined response (tools + text)
+            # 1. Get the model's response (narrative + next_scene)
             response = await _get_model_response(self.client, self.system_prompt, prompt)
-            candidate = response.candidates[0]
-
-            # 2. Execute any hardware actions suggested by the model
-            tool_calls = []
-            if candidate.content and candidate.content.parts:
-                tool_calls = [part.function_call for part in candidate.content.parts if part.function_call]
             
-            print(f"[ORCHESTRATOR] <--- Received {len(tool_calls)} tool call(s) from API.")
-            await _execute_tool_calls(tool_calls, self.hardware)
-
-            # 3. Extract and parse the JSON narrative
-            text_part = "".join(part.text for part in candidate.content.parts if part.text).strip()
-            response_data = _parse_json_from_text(text_part)
+            # 2. Extract and parse the JSON narrative
+            raw_text = response.text
+            response_data = _parse_json_from_text(raw_text)
             
-            # If there's no JSON data but there were tool calls, create a default response.
-            if not response_data and tool_calls:
-                print("[ORCHESTRATOR] WARNING: No narrative returned with tool calls. Creating a default response.")
-                response_data = {
-                    "narrative": "On it.",
-                    "next_scene": self.current_scene 
-                }
-
             if not response_data:
                 print("[ORCHESTRATOR] ERROR: Failed to get a valid JSON narrative. Using fallback.")
                 return "I'm not sure what to say next.", self.current_scene
 
-            # 4. Update state and return the narrative
+            # 3. Update state and get narrative
             narrative = response_data.get("narrative", "I'm speechless.")
-            self.current_scene = response_data.get("next_scene", self.current_scene)
+            next_scene = response_data.get("next_scene", self.current_scene)
 
+            # 4. If the scene has changed, execute the corresponding actions
+            if next_scene != self.current_scene:
+                await _execute_scene_actions(next_scene, self.hardware)
+
+            self.current_scene = next_scene
             print(f"[ORCHESTRATOR] <--- Updated scene to \"{self.current_scene}\". Returning narrative to Director.")
             return narrative, self.current_scene
 
+        except asyncio.TimeoutError:
+            print("[ORCHESTRATOR] CRITICAL_ERROR: Gemini API call timed out.")
+            return "I took too long to think. Could you please try that again?", self.current_scene
         except Exception as e:
             print(f"[ORCHESTRATOR] CRITICAL_ERROR: {e}")
             return "I seem to have gotten my wires crossed. Could you try that again?", self.current_scene
