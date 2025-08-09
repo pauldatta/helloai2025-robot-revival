@@ -1,6 +1,7 @@
 import os
 import serial
 import time
+import asyncio
 from dotenv import load_dotenv
 from google.genai.types import FunctionDeclaration
 
@@ -17,36 +18,39 @@ class SerialCommunicator:
         self.baudrate = baudrate
         self.name = name
         self.ser = None
-        self._connect()
-
-    def _connect(self):
-        """Waits for and establishes the serial connection."""
+        # The connection will now be established asynchronously.
+        
+    async def _connect(self):
+        """Waits for and establishes the serial connection asynchronously."""
         print(f"[HARDWARE] Waiting for serial port '{self.port}' for {self.name}...")
         start_time = time.time()
         while not os.path.exists(self.port):
             if time.time() - start_time > 10:  # 10-second timeout
                 print(f"[HARDWARE] ERROR: Timed out waiting for port '{self.port}'.")
                 return
-            time.sleep(0.5)
+            await asyncio.sleep(0.5)
         try:
-            self.ser = serial.Serial(self.port, self.baudrate, timeout=1)
+            # Run the blocking serial.Serial call in a separate thread
+            self.ser = await asyncio.to_thread(serial.Serial, self.port, self.baudrate, timeout=1)
             print(f"[HARDWARE] Successfully connected to {self.name} on port: {self.port}")
         except serial.SerialException as e:
             print(f"[HARDWARE] ERROR: Could not open port for {self.name}: {e}. Commands will be mocked.")
 
-    def send_command(self, command: str):
-        """Sends a command to the serial port and reads a line if it's the arm."""
+    async def send_command(self, command: str):
+        """Sends a command to the serial port asynchronously."""
         if self.ser and self.ser.is_open:
             try:
                 full_command = command + '\n'
-                self.ser.write(full_command.encode('utf-8'))
+                # Run the blocking write call in a separate thread
+                await asyncio.to_thread(self.ser.write, full_command.encode('utf-8'))
                 print(f"[HARDWARE] ---> Sent to {self.name}: \"{full_command.strip()}\"")
                 
-                # If this is the robotic arm, read the feedback to prevent blocking
                 if self.name == "Robotic Arm Controller":
-                    time.sleep(0.1) # Give the emulator a moment to respond
-                    response = self.ser.readline().decode('utf-8').strip()
-                    print(f"[HARDWARE] <--- Received from {self.name}: \"{response}\"")
+                    await asyncio.sleep(0.1) # Give the emulator a moment to respond
+                    # Run the blocking readline call in a separate thread
+                    response = await asyncio.to_thread(self.ser.readline)
+                    response_str = response.decode('utf-8').strip()
+                    print(f"[HARDWARE] <--- Received from {self.name}: \"{response_str}\"")
 
                 return f"Command '{command}' sent to {self.name}."
             except serial.SerialException as e:
@@ -55,9 +59,9 @@ class SerialCommunicator:
             print(f"[HARDWARE] MOCK_ACTION: Port for {self.name} not available. Mock command: \"{command}\"")
             return f"Mock command '{command}' executed for {self.name}."
 
-    def close(self):
+    async def close(self):
         if self.ser and self.ser.is_open:
-            self.ser.close()
+            await asyncio.to_thread(self.ser.close)
             print(f"[HARDWARE] Serial connection for {self.name} closed.")
 
 
@@ -77,13 +81,18 @@ class HardwareManager:
 
         if not main_port or not arm_port:
             print("[HARDWARE] ERROR: Serial ports not defined in environment. Halting.")
-            # In a real app, you might raise an exception here.
-            # For this project, we'll proceed with mock connections.
             main_port = main_port or './mock_main_port'
             arm_port = arm_port or './mock_arm_port'
 
         self.main_scene_controller = SerialCommunicator(port=main_port, baudrate=9600, name="Main Scene Controller")
         self.robotic_arm_controller = SerialCommunicator(port=arm_port, baudrate=57600, name="Robotic Arm Controller")
+
+    async def connect_all(self):
+        """Connects to all serial devices concurrently."""
+        await asyncio.gather(
+            self.main_scene_controller._connect(),
+            self.robotic_arm_controller._connect()
+        )
 
     def _validate_params(self, p1=None, p2=None, p3=None, velocity=None, acceleration=None, scene_command_id=None):
         """A single method to validate all possible hardware parameters."""
@@ -101,27 +110,30 @@ class HardwareManager:
             return f"[HARDWARE] VALIDATION_ERROR: Invalid acceleration '{acceleration}'."
         return None
 
-    def trigger_diorama_scene(self, scene_command_id: int):
+    async def trigger_diorama_scene(self, scene_command_id: int):
         """Triggers a scene on the diorama after validating the ID."""
         error = self._validate_params(scene_command_id=scene_command_id)
         if error:
             print(error)
             return error
-        return self.main_scene_controller.send_command(str(scene_command_id))
+        return await self.main_scene_controller.send_command(str(scene_command_id))
 
-    def move_robotic_arm(self, p1: int, p2: int, p3: int, velocity: int = 50, acceleration: int = 5):
+    async def move_robotic_arm(self, p1: int, p2: int, p3: int, velocity: int = 50, acceleration: int = 5):
         """Moves the robotic arm to a specific position after validating parameters."""
         error = self._validate_params(p1=p1, p2=p2, p3=p3, velocity=velocity, acceleration=acceleration)
         if error:
             print(error)
             return error
         command = f"3 {velocity} {velocity} {velocity} {acceleration} {acceleration} {acceleration} {p1} {p2} {p3}"
-        return self.robotic_arm_controller.send_command(command)
+        return await self.robotic_arm_controller.send_command(command)
 
-    def close_all_ports(self):
+    async def close_all_ports(self):
         """Closes all managed serial connections."""
-        self.main_scene_controller.close()
-        self.robotic_arm_controller.close()
+        await asyncio.gather(
+            self.main_scene_controller.close(),
+            self.robotic_arm_controller.close()
+        )
+
 
 # --- Function Declarations for Gemini API ---
 # These remain at the module level as they are static definitions for the API.

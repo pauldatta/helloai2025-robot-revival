@@ -23,16 +23,14 @@ class AumDirectorApp:
         self.audio_in_queue = asyncio.Queue()
         self.session = None
 
-    def process_user_command(self, command: str):
+    async def process_user_command(self, command: str):
         """
         Processes the user's command by sending it to the orchestrator and
-        returning the structured response.
+        returning the structured response. Now fully async.
         """
         print(f"[DIRECTOR] ---> Calling Orchestrator with command: \"{command}\"")
-        # The orchestrator now returns a tuple: (narrative, scene_name)
-        narrative, scene_name = self.orchestrator.process_user_command(command)
+        narrative, scene_name = await self.orchestrator.process_user_command(command)
         print(f"[DIRECTOR] <--- Received narrative: \"{narrative}\" | New Scene: {scene_name}")
-        # We return a dictionary, which becomes the JSON response for the tool call
         return {"narrative": narrative, "scene_name": scene_name}
 
     async def listen_and_send_audio(self):
@@ -78,28 +76,23 @@ class AumDirectorApp:
 
             turn = self.session.receive()
             async for response in turn:
-                # Handle audio output from the model
                 if response.server_content and response.server_content.model_turn:
                     for part in response.server_content.model_turn.parts:
                         if audio_data := getattr(part, "inline_data", None):
                             if audio_data.mime_type.startswith("audio/pcm"):
                                 self.audio_in_queue.put_nowait(audio_data.data)
 
-                # Handle tool calls requested by the model
                 if response.tool_call:
                     for call in response.tool_call.function_calls:
                         tool_name = call.name
                         if tool_name == "process_user_command":
                             command = call.args["command"]
                             print(f"[DIRECTOR] ---> User speech detected: \"{command}\"")
-                            # Execute the tool and get the structured result
-                            result = self.process_user_command(command)
-                            # Send the entire structured result back to the model
+                            result = await self.process_user_command(command)
                             await self.session.send_tool_response(
                                 function_responses=[types.FunctionResponse(id=call.id, name=tool_name, response=result)]
                             )
 
-                # Optional: Print interim transcripts for debugging
                 if response.server_content and (it := response.server_content.input_transcription):
                     if not it.finished:
                         print(f"[DIRECTOR] Interim transcript: \"{it.text}\"")
@@ -108,11 +101,9 @@ class AumDirectorApp:
         """Main entry point to run the director application."""
         client = genai.Client()
 
-        # Load the system prompt for the Live Director
         with open("prompts/AUM_DIRECTOR.md", "r") as f:
             system_prompt = f.read()
         
-        # Define the tool schema for the one and only tool the director uses.
         tools = [
             {
                 "name": "process_user_command",
@@ -135,6 +126,8 @@ class AumDirectorApp:
         print("Press Ctrl+C to exit.")
 
         try:
+            await self.orchestrator.hardware.connect_all()
+
             async with client.aio.live.connect(
                 model="models/gemini-2.5-flash-preview-native-audio-dialog",
                 config={
@@ -165,5 +158,5 @@ class AumDirectorApp:
         finally:
             self.pya.terminate()
             if self.orchestrator and hasattr(self.orchestrator, 'hardware'):
-                self.orchestrator.hardware.close_all_ports()
+                await self.orchestrator.hardware.close_all_ports()
             print("--- Application shut down gracefully ---")
