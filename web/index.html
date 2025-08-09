@@ -37,6 +37,9 @@
 
         #log-container { font-family: 'SF Mono', 'Courier New', monospace; font-size: 0.8em; color: var(--text-muted); }
         
+        .status-item { display: flex; justify-content: space-between; margin-bottom: 8px; align-items: center; }
+        .status-value { padding: 3px 10px; border-radius: 5px; background-color: #333; font-weight: bold; }
+
         #map-widget {
             position: relative; width: 100%; padding-bottom: 100%; border-radius: 50%;
             background-image: url('/static/Server_Screenshot.png'); background-size: 150%;
@@ -63,9 +66,9 @@
         <section class="systems-column d-flex flex-column gap-3">
             <div class="panel">
                 <div class="panel-title">System Status</div>
-                <div id="status-director"><strong>Director:</strong> STANDBY</div>
-                <div id="status-orchestrator"><strong>Orchestrator:</strong> IDLE</div>
-                <div id="status-scene"><strong>Current Scene:</strong> AWAITING</div>
+                <div class="status-item"><span>Director:</span> <span id="status-director" class="status-value">STANDBY</span></div>
+                <div class="status-item"><span>Orchestrator:</span> <span id="status-orchestrator" class="status-value">IDLE</span></div>
+                <div class="status-item"><span>Current Scene:</span> <span id="status-scene" class="status-value">AWAITING</span></div>
             </div>
             <div class="panel flex-grow-1">
                 <div class="panel-title">Full Log Stream</div>
@@ -139,10 +142,10 @@
         }
 
         function updateDashboard(message) {
-            if (message.includes('User speech detected')) {
+            if (message.startsWith('[DIRECTOR] ---> User speech detected')) {
                 addTranscriptItem(message.split(': "')[1].slice(0, -1), 'User');
                 document.getElementById('status-director').innerHTML = "<strong>Director:</strong> LISTENING";
-            } else if (message.includes('Received narrative')) {
+            } else if (message.startsWith('[DIRECTOR] <--- Received narrative')) {
                 addTranscriptItem(message.split(': "')[1].split('" |')[0], 'Aum');
             }
             if (message.includes('Updated scene to')) {
