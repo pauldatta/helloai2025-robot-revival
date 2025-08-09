@@ -82,6 +82,8 @@ class MainSceneEmulator:
                     if line:
                         line = line.decode('utf-8').strip()
                         print(f"[SCENE_EMU] <--- Received command: \"{line}\"")
+                        # Send a simple "OK" confirmation
+                        self.ser.write(b"OK\n")
                         sys.stdout.flush()
             except Exception as e:
                 print(f"[SCENE_EMU] ERROR: Could not process command: {e}")
