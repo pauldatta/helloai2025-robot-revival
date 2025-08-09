@@ -61,6 +61,13 @@ The application's logic is decoupled into a voice interface, a control plane, an
       python -m src.main
       ```
 
+#### Using Foreman (for Production Deployment)
+- If you are deploying to a platform that uses `Procfile`s (like Heroku), you can use the `Procfile.prod`.
+  ```bash
+  # Ensure AUM_ENVIRONMENT is set to "prod" in your environment variables
+  foreman start -f Procfile.prod
+  ```
+
 ### 4. Running Tests
 - To verify the application's logic, run the unit tests:
   ```bash
