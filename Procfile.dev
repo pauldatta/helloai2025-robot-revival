@@ -4,5 +4,5 @@
 
 socat_main: socat -d -d pty,raw,echo=0,link=./main_controller_app_port pty,raw,echo=0,link=./main_controller_emu_port
 socat_arm: socat -d -d pty,raw,echo=0,link=./robotic_arm_app_port pty,raw,echo=0,link=./robotic_arm_emu_port
-emulator: python -u src/hardware_emulator.py
-director: python -u src/main.py
+emulator: python -u -m src.hardware_emulator
+director: python -u -m src.main
