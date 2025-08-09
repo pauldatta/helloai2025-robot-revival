@@ -12,3 +12,4 @@ fastapi
 uvicorn
 websockets
 aiofiles
+python-json-logger

@@ -3,126 +3,177 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aum's Journey - Control Panel</title>
+    <title>Aum's Journey - Mission Control</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
+        :root {
+            --dark-bg: #121212;
+            --panel-bg: #1e1e1e;
+            --border-color: #333;
+            --text-color: #e0e0e0;
+            --director-color: #5c8aff;
+            --orchestrator-color: #ff9f5c;
+            --hardware-color: #5cff9f;
+            --system-color: #a95cff;
+            --error-color: #ff5c5c;
+        }
         body {
-            background-color: #121212;
-            color: #e0e0e0;
+            background-color: var(--dark-bg);
+            color: var(--text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-        .navbar {
-            background-color: #1f1f1f;
-        }
-        #log-container {
-            height: 75vh;
-            background-color: #1e1e1e;
-            border: 1px solid #333;
-            border-radius: 5px;
-            overflow-y: scroll;
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 0.9em;
+        .grid-container {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            grid-template-rows: auto 1fr;
+            gap: 15px;
+            height: 95vh;
             padding: 15px;
         }
-        .log-message {
-            white-space: pre-wrap;
-            margin-bottom: 5px;
+        .grid-header { grid-column: 1 / -1; }
+        .grid-main { grid-column: 1 / 2; display: flex; flex-direction: column; }
+        .grid-sidebar { grid-column: 2 / 3; display: flex; flex-direction: column; gap: 15px; }
+        
+        .panel {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
-        .log-error { color: #ff5c5c; }
-        .log-director { color: #5c8aff; }
-        .log-orchestrator { color: #ff9f5c; }
-        .log-hardware { color: #5cff9f; }
-        .log-emulator { color: #a95cff; }
-        .controls {
-            background-color: #1f1f1f;
-            padding: 20px;
-            border-radius: 5px;
+        .panel-title {
+            margin-bottom: 10px;
+            font-weight: bold;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
         }
+        .scroll-content {
+            overflow-y: auto;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9em;
+        }
+        #log-container .log-message { white-space: pre-wrap; margin-bottom: 2px; }
+        #transcript-container .transcript-item { margin-bottom: 10px; }
+        .user-speech { color: var(--director-color); }
+        .ai-narrative { color: var(--orchestrator-color); }
+
+        #status-panel .status-item { display: flex; justify-content: space-between; margin-bottom: 5px; }
+        .status-label { font-weight: bold; }
+        .status-value { padding: 2px 8px; border-radius: 5px; background-color: #333; }
     </style>
 </head>
 <body>
-    <nav class="navbar navbar-dark">
-        <div class="container-fluid">
-            <span class="navbar-brand mb-0 h1">Aum's Journey - Control Panel</span>
-        </div>
-    </nav>
+    <div class="grid-container">
+        <header class="grid-header panel">
+            <h4 class="m-0">Aum's Journey - Mission Control</h4>
+        </header>
 
-    <div class="container mt-4">
-        <div class="row">
-            <div class="col-md-8">
-                <h5>Real-time Log Stream</h5>
-                <div id="log-container"></div>
+        <main class="grid-main panel">
+            <div class="panel-title">Full Log Stream</div>
+            <div id="log-container" class="scroll-content"></div>
+        </main>
+
+        <aside class="grid-sidebar">
+            <div id="status-panel" class="panel">
+                <div class="panel-title">System Status</div>
+                <div class="status-item"><span class="status-label">Director:</span> <span id="status-director" class="status-value">...</span></div>
+                <div class="status-item"><span class="status-label">Orchestrator:</span> <span id="status-orchestrator" class="status-value">...</span></div>
+                <div class="status-item"><span class="status-label">Current Scene:</span> <span id="status-scene" class="status-value">AWAITING</span></div>
             </div>
-            <div class="col-md-4">
-                <h5>Controls</h5>
-                <div class="controls">
-                    <button id="stop-button" class="btn btn-danger w-100">Emergency Stop</button>
-                </div>
+            <div class="panel flex-grow-1">
+                <div class="panel-title">Conversation Transcript</div>
+                <div id="transcript-container" class="scroll-content"></div>
             </div>
-        </div>
+            <div class="panel">
+                <div class="panel-title">Controls</div>
+                <button id="stop-button" class="btn btn-danger w-100">Emergency Stop</button>
+            </div>
+        </aside>
     </div>
 
     <script>
         const logContainer = document.getElementById('log-container');
-        const stopButton = document.getElementById('stop-button');
-        let socket;
+        const transcriptContainer = document.getElementById('transcript-container');
+        const statusDirector = document.getElementById('status-director');
+        const statusOrchestrator = document.getElementById('status-orchestrator');
+        const statusScene = document.getElementById('status-scene');
 
         function connect() {
-            socket = new WebSocket(`ws://${window.location.host}/ws/logs`);
+            const socket = new WebSocket(`ws://${window.location.host}/ws/logs`);
 
-            socket.onopen = function(event) {
-                console.log("WebSocket connected.");
-                const logElement = document.createElement('div');
-                logElement.className = 'log-message';
-                logElement.style.color = '#28a745'; // Green for connection success
-                logElement.textContent = '[SYSTEM] Connected to log stream.';
-                logContainer.appendChild(logElement);
-                logContainer.scrollTop = logContainer.scrollHeight;
-            };
-
-            socket.onmessage = function(event) {
-                const message = event.data;
-                const logElement = document.createElement('div');
-                logElement.className = 'log-message';
-
-                if (message.includes('[DIRECTOR]')) {
-                    logElement.classList.add('log-director');
-                } else if (message.includes('[ORCHESTRATOR]')) {
-                    logElement.classList.add('log-orchestrator');
-                } else if (message.includes('[HARDWARE]')) {
-                    logElement.classList.add('log-hardware');
-                } else if (message.includes('[EMU]')) {
-                    logElement.classList.add('log-emulator');
-                } else if (message.includes('ERROR')) {
-                    logElement.classList.add('log-error');
-                }
-
-                logElement.textContent = message;
-                logContainer.appendChild(logElement);
-                logContainer.scrollTop = logContainer.scrollHeight; // Auto-scroll
-            };
-
-            socket.onclose = function(event) {
-                console.log("WebSocket disconnected. Retrying in 2 seconds...");
-                const logElement = document.createElement('div');
-                logElement.className = 'log-message';
-                logElement.style.color = '#ffc107'; // Yellow for disconnection
-                logElement.textContent = '[SYSTEM] Disconnected. Attempting to reconnect...';
-                logContainer.appendChild(logElement);
-                logContainer.scrollTop = logContainer.scrollHeight;
+            socket.onopen = () => logSystemMessage('Connected to log stream.', '#28a745');
+            socket.onclose = () => {
+                logSystemMessage('Disconnected. Retrying...', '#ffc107');
                 setTimeout(connect, 2000);
             };
-
-            socket.onerror = function(error) {
+            socket.onerror = (error) => {
                 console.error("WebSocket error:", error);
+                logSystemMessage('Connection error.', '#ff5c5c');
+            };
+            socket.onmessage = (event) => {
+                try {
+                    const logData = JSON.parse(event.data);
+                    const message = logData.message;
+                    
+                    // Full log stream
+                    const logElement = document.createElement('div');
+                    logElement.className = 'log-message';
+                    logElement.textContent = `${logData.asctime} - ${message}`;
+                    logContainer.appendChild(logElement);
+                    logContainer.scrollTop = logContainer.scrollHeight;
+
+                    // Update status and transcript panels
+                    updateDashboard(message);
+
+                } catch (e) {
+                    // Handle non-JSON system messages
+                    logSystemMessage(event.data, 'grey');
+                }
             };
         }
 
-        stopButton.onclick = function() {
-            // Placeholder for future functionality
-            alert('Emergency Stop clicked! (Functionality to be implemented)');
-        };
+        function updateDashboard(message) {
+            if (message.includes('[DIRECTOR]')) {
+                if (message.includes('User speech detected')) {
+                    addTranscriptItem(message.split(': "')[1].slice(0, -1), 'user-speech');
+                    statusDirector.textContent = "Listening...";
+                } else if (message.includes('Received narrative')) {
+                    addTranscriptItem(message.split(': "')[1].split('" |')[0], 'ai-narrative');
+                }
+            } else if (message.includes('[ORCHESTRATOR]')) {
+                if (message.includes('Updated scene to')) {
+                    const scene = message.split('"')[1];
+                    statusScene.textContent = scene;
+                    statusOrchestrator.textContent = "Idle";
+                } else if (message.includes('Calling Gemini API')) {
+                    statusOrchestrator.textContent = "Thinking...";
+                }
+            }
+        }
 
-        // Initial connection
+        function addTranscriptItem(text, className) {
+            const item = document.createElement('div');
+            item.className = `transcript-item ${className}`;
+            const label = document.createElement('strong');
+            label.textContent = className === 'user-speech' ? 'User: ' : 'Aum: ';
+            item.appendChild(label);
+            item.append(text);
+            transcriptContainer.appendChild(item);
+            transcriptContainer.scrollTop = transcriptContainer.scrollHeight;
+        }
+
+        function logSystemMessage(message, color) {
+            const logElement = document.createElement('div');
+            logElement.className = 'log-message';
+            logElement.style.color = color;
+            logElement.textContent = message;
+            logContainer.appendChild(logElement);
+        }
+
+        document.getElementById('stop-button').onclick = () => alert('Emergency Stop clicked!');
+        
         connect();
     </script>
 </body>
