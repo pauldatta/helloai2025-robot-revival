@@ -15,6 +15,12 @@ The application's logic is decoupled into a voice interface, a control plane, an
 
 ![System Architecture Diagram](context/new_architecture_diagram.svg)
 
+## Mission Control Web Interface
+
+The project includes a real-time web interface for monitoring and control, accessible at `http://localhost:8000` when running the app. It provides a live log stream, a parsed conversation transcript, and a system status panel, all powered by a FastAPI backend with WebSockets.
+
+![Mission Control Web Interface](context/aums_web_admin.png)
+
 ## Project Structure
 
 -   `src/`: Contains all the core Python source code.
