@@ -4,7 +4,7 @@
 
 To develop a Python-based control plane for "Aum's Journey," an interactive robotic art installation. The system will use the Gemini API with function calling to narrate a story and control physical hardware.
 
-Gemini Model: gemini-2.5-pro 
+Gemini Model: gemini-2.5-pro, gemini-2.5-flash. NEVER use gemini-1.5-pro
 
 ## Core Components
 
@@ -66,6 +66,7 @@ This document summarizes key technical decisions and lessons learned during the 
 
 - **Installation vs. Import**: The library is installed via `pip install google-genai`, but imported in Python using `from google import genai`. The package name and module name are different.
 - **Client Pattern**: For chat and tool-use applications, the preferred pattern is to use the `genai.Client()` object, not the `genai.GenerativeModel()` helper class. The client provides more direct control over chat history and API interactions.
+- **Model Naming**: For chat and tool-calling models, use the format `models/gemini-2.5-flash`. Do not use deprecated names like `gemini-1.5-flash-latest`.
 
 ## 2. Live API for Voice Interaction
 
