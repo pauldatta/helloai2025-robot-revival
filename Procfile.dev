@@ -4,5 +4,6 @@
 
 socat_main: socat -d -d pty,raw,echo=0,link=./main_controller_app_port pty,raw,echo=0,link=./main_controller_emu_port
 socat_arm: socat -d -d pty,raw,echo=0,link=./robotic_arm_app_port pty,raw,echo=0,link=./robotic_arm_emu_port
+web: uvicorn web.server:app --host 0.0.0.0 --port 8000
 emulator: python -u -m src.hardware_emulator
 director: python -u -m src.main

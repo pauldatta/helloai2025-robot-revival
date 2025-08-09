@@ -1,24 +1,13 @@
-# Python artifacts
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
+# Log files
+app.log
 
 # Virtual environment
 venv/
-env/
+__pycache__/
 
-# Distribution / packaging
-dist/
-build/
-*.egg-info/
+# IDE files
+.vscode/
+.idea/
 
-# Conf
-.env
-
-# OS files
-.DS_Store
-._*
-.Spotlight-V100
-.Trashes
+# Socat ports
+*_port

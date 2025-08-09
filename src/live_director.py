@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 import pyaudio
 import traceback
@@ -29,9 +30,9 @@ class AumDirectorApp:
         Processes the user's command by sending it to the orchestrator and
         returning the structured response. Now fully async.
         """
-        print(f'[DIRECTOR] ---> Calling Orchestrator with command: "{command}"')
+        logging.info(f'[DIRECTOR] ---> Calling Orchestrator with command: "{command}"')
         narrative, scene_name = await self.orchestrator.process_user_command(command)
-        print(
+        logging.info(
             f'[DIRECTOR] <--- Received narrative: "{narrative}" | New Scene: {scene_name}'
         )
         return {"narrative": narrative, "scene_name": scene_name}
@@ -47,7 +48,7 @@ class AumDirectorApp:
             input_device_index=mic_info["index"],
             frames_per_buffer=CHUNK_SIZE,
         )
-        print("[DIRECTOR] Microphone is open. Start speaking.")
+        logging.info("[DIRECTOR] Microphone is open. Start speaking.")
         while True:
             data = await asyncio.to_thread(
                 stream.read, CHUNK_SIZE, exception_on_overflow=False
@@ -65,7 +66,7 @@ class AumDirectorApp:
             rate=RECEIVE_SAMPLE_RATE,
             output=True,
         )
-        print("[DIRECTOR] Audio output stream is open.")
+        logging.info("[DIRECTOR] Audio output stream is open.")
         while True:
             chunk = await self.audio_in_queue.get()
             await asyncio.to_thread(stream.write, chunk)
@@ -90,7 +91,9 @@ class AumDirectorApp:
                         tool_name = call.name
                         if tool_name == "process_user_command":
                             command = call.args["command"]
-                            print(f'[DIRECTOR] ---> User speech detected: "{command}"')
+                            logging.info(
+                                f'[DIRECTOR] ---> User speech detected: "{command}"'
+                            )
                             result = await self.process_user_command(command)
                             await self.session.send_tool_response(
                                 function_responses=[
@@ -104,7 +107,7 @@ class AumDirectorApp:
                     it := response.server_content.input_transcription
                 ):
                     if not it.finished:
-                        print(f'[DIRECTOR] Interim transcript: "{it.text}"')
+                        logging.info(f'[DIRECTOR] Interim transcript: "{it.text}"')
 
     async def run(self):
         """Main entry point to run the director application."""
@@ -133,9 +136,9 @@ class AumDirectorApp:
             }
         ]
 
-        print("--- Aum's Journey Director ---")
-        print("Initializing...")
-        print("Press Ctrl+C to exit.")
+        logging.info("--- Aum's Journey Director ---")
+        logging.info("Initializing...")
+        logging.info("Press Ctrl+C to exit.")
 
         try:
             await self.orchestrator.hardware.connect_all()
@@ -159,16 +162,20 @@ class AumDirectorApp:
         except asyncio.CancelledError:
             pass
         except ExceptionGroup as eg:
-            print(f"[DIRECTOR] CRITICAL_ERROR: {eg.message}")
+            logging.error(f"[DIRECTOR] CRITICAL_ERROR: {eg.message}")
             for error in eg.exceptions:
-                print("--- Sub-exception ---")
-                traceback.print_exception(error)
-                print("---------------------")
+                logging.error("--- Sub-exception ---")
+                # Create a dummy exception to pass to print_exception
+                try:
+                    raise error
+                except Exception:
+                    logging.error(traceback.format_exc())
+                logging.error("---------------------")
         except Exception as e:
-            print(f"[DIRECTOR] CRITICAL_ERROR: {e}")
-            traceback.print_exc()
+            logging.error(f"[DIRECTOR] CRITICAL_ERROR: {e}")
+            logging.error(traceback.format_exc())
         finally:
             self.pya.terminate()
             if self.orchestrator and hasattr(self.orchestrator, "hardware"):
                 await self.orchestrator.hardware.close_all_ports()
-            print("--- Application shut down gracefully ---")
+            logging.info("--- Application shut down gracefully ---")

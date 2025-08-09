@@ -1,7 +1,9 @@
+import asyncio
+import logging
 import os
 import serial
 import time
-import asyncio
+
 
 # --- Constants for Hardware Validation ---
 VALID_SCENE_IDS = set(range(1, 16))
@@ -22,11 +24,15 @@ class SerialCommunicator:
 
     async def _connect(self):
         """Waits for and establishes the serial connection asynchronously."""
-        print(f"[HARDWARE] Waiting for serial port '{self.port}' for {self.name}...")
+        logging.info(
+            f"[HARDWARE] Waiting for serial port '{self.port}' for {self.name}..."
+        )
         start_time = time.time()
         while not os.path.exists(self.port):
             if time.time() - start_time > 10:  # 10-second timeout
-                print(f"[HARDWARE] ERROR: Timed out waiting for port '{self.port}'.")
+                logging.error(
+                    f"[HARDWARE] ERROR: Timed out waiting for port '{self.port}'."
+                )
                 return
             await asyncio.sleep(0.5)
         try:
@@ -34,11 +40,11 @@ class SerialCommunicator:
             self.ser = await asyncio.to_thread(
                 serial.Serial, self.port, self.baudrate, timeout=1
             )
-            print(
+            logging.info(
                 f"[HARDWARE] Successfully connected to {self.name} on port: {self.port}"
             )
         except serial.SerialException as e:
-            print(
+            logging.error(
                 f"[HARDWARE] ERROR: Could not open port for {self.name}: {e}. Commands will be mocked."
             )
 
@@ -49,7 +55,9 @@ class SerialCommunicator:
                 full_command = command + "\n"
                 # Run the blocking write call in a separate thread
                 await asyncio.to_thread(self.ser.write, full_command.encode("utf-8"))
-                print(f'[HARDWARE] ---> Sent to {self.name}: "{full_command.strip()}"')
+                logging.info(
+                    f'[HARDWARE] ---> Sent to {self.name}: "{full_command.strip()}"'
+                )
 
                 # Always read a line back to prevent the buffer from filling up and blocking.
                 # The serial port has a timeout, so this won't block forever.
@@ -57,7 +65,7 @@ class SerialCommunicator:
                 response = await asyncio.to_thread(self.ser.readline)
                 response_str = response.decode("utf-8").strip()
                 if response_str:
-                    print(
+                    logging.info(
                         f'[HARDWARE] <--- Received from {self.name}: "{response_str}"'
                     )
 
@@ -65,7 +73,7 @@ class SerialCommunicator:
             except serial.SerialException as e:
                 return f"[HARDWARE] ERROR: Failed to send command to {self.name}: {e}"
         else:
-            print(
+            logging.info(
                 f'[HARDWARE] MOCK_ACTION: Port for {self.name} not available. Mock command: "{command}"'
             )
             return f"Mock command '{command}' executed for {self.name}."
@@ -73,7 +81,7 @@ class SerialCommunicator:
     async def close(self):
         if self.ser and self.ser.is_open:
             await asyncio.to_thread(self.ser.close)
-            print(f"[HARDWARE] Serial connection for {self.name} closed.")
+            logging.info(f"[HARDWARE] Serial connection for {self.name} closed.")
 
 
 class HardwareManager:
@@ -83,18 +91,24 @@ class HardwareManager:
         env = os.getenv("AUM_ENVIRONMENT", "prod")  # Default to production
 
         if env == "dev":
-            print("[HARDWARE] Running in DEV mode. Connecting to EMULATOR ports.")
+            logging.info(
+                "[HARDWARE] Running in DEV mode. Connecting to EMULATOR ports."
+            )
             main_port = os.getenv(
                 "MAIN_CONTROLLER_PORT_EMULATOR", "./main_controller_emu_port"
             )
             arm_port = os.getenv("ROBOTIC_ARM_PORT_EMULATOR", "./robotic_arm_emu_port")
         else:
-            print("[HARDWARE] Running in PROD mode. Connecting to REAL hardware ports.")
+            logging.info(
+                "[HARDWARE] Running in PROD mode. Connecting to REAL hardware ports."
+            )
             main_port = os.getenv("MAIN_CONTROLLER_PORT")
             arm_port = os.getenv("ROBOTIC_ARM_PORT")
 
         if not main_port or not arm_port:
-            print("[HARDWARE] ERROR: Serial ports not defined in environment. Halting.")
+            logging.error(
+                "[HARDWARE] ERROR: Serial ports not defined in environment. Halting."
+            )
             main_port = main_port or "./mock_main_port"
             arm_port = arm_port or "./mock_arm_port"
 
@@ -142,26 +156,31 @@ class HardwareManager:
         """Triggers a scene on the diorama after validating the ID."""
         error = self._validate_params(scene_command_id=scene_command_id)
         if error:
-            print(error)
+            logging.error(error)
             return error
         return await self.main_scene_controller.send_command(str(scene_command_id))
 
     async def move_robotic_arm(
-        self, p1: int, p2: int, p3: int, velocity: int = 50, acceleration: int = 5
+        self,
+        p1: int,
+        p2: int,
+        p3: int,
+        velocity: int = 50,
+        acceleration: int = 5,
     ):
         """Moves the robotic arm to a specific position after validating parameters."""
         error = self._validate_params(
             p1=p1, p2=p2, p3=p3, velocity=velocity, acceleration=acceleration
         )
         if error:
-            print(error)
+            logging.error(error)
             return error
         command = f"3 {velocity} {velocity} {velocity} {acceleration} {acceleration} {acceleration} {p1} {p2} {p3}"
         return await self.robotic_arm_controller.send_command(command)
 
     async def play_video(self, video_file: str):
         """Plays a video file on the tablet. Placeholder for now."""
-        print(f"[HARDWARE] MOCK_ACTION: Playing video '{video_file}' on tablet.")
+        logging.info(f"[HARDWARE] MOCK_ACTION: Playing video '{video_file}' on tablet.")
         # In the future, this would send a command to a media player
         await asyncio.sleep(1)  # Simulate time to start video
         return f"Video '{video_file}' is now playing."

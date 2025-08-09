@@ -7,3 +7,8 @@ foreman
 
 pre-commit
 ruff
+
+fastapi
+uvicorn
+websockets
+aiofiles
