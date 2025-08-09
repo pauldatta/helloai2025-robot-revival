@@ -32,12 +32,25 @@ The project is organized into the following directories:
   - Copy `.env.example` to a new file named `.env`.
   - Edit `.env` and add your `GEMINI_API_KEY`.
 
-### 2. Running the Application
+### 2. Running in Emulator Mode (for Development)
 - The application runs in **emulator mode** by default when you use `foreman`.
   ```bash
   source venv/bin/activate
   foreman start -f Procfile.dev
   ```
+
+### 3. Running in Production Mode (with Hardware)
+1.  **Find Your Port Names:** Connect your hardware and find the device paths (e.g., by running `ls /dev/tty.*`).
+2.  **Configure `.env`:**
+    - Open your `.env` file.
+    - Set the environment to production: `AUM_ENVIRONMENT="prod"`
+    - Set the correct port paths for your hardware (e.g., `MAIN_CONTROLLER_PORT="/dev/tty.usbmodem12345"`).
+3.  **Run the Application:**
+    - Start the main application directly as a module from the project root.
+      ```bash
+      source venv/bin/activate
+      python -m src.main
+      ```
 
 ### Example Log Output
 The standardized logs clearly show the flow of information between the components.
@@ -57,7 +70,7 @@ The standardized logs clearly show the flow of information between the component
 [DIRECTOR] <--- Received narrative: "Aum ran away from this home when he was just seven years old." | New Scene: AUMS_HOME
 ```
 
-### 3. Running Tests
+### 4. Running Tests
 - To verify the application's logic, run the unit tests:
   ```bash
   source venv/bin/activate
