@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased] - 2025-08-09
+
+### **v0.3.0: Mission Control Web Interface & Developer Tooling**
+
+Introduced a comprehensive web-based monitoring and control panel, and integrated modern developer tooling to improve code quality and consistency.
+
+-   **Added "Mission Control" Web UI:** Created a real-time web interface using FastAPI and WebSockets to provide a live, color-coded log stream, a parsed conversation transcript, and a system status panel.
+-   **Implemented Robust Logging:** Refactored the entire application to use Python's standard `logging` module with a JSON formatter, writing to both the console and a dedicated `app.log` file for the web UI to consume.
+-   **Integrated Pre-commit Hooks:** Set up `ruff` for automated code formatting and linting, which now runs automatically before each commit to ensure code quality and a consistent style.
+-   **Added Production Procfile:** Created a `Procfile.prod` to streamline deployment, configured to run the main application and the web server.
+-   **Enhanced Documentation:** Updated the `README.md` with a screenshot of the new web interface and added setup instructions for the new developer dependencies and pre-commit hooks.
+
+---
+
 ## [Unreleased] - 2025-08-08
 
 ### Added
