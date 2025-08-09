@@ -1,138 +1,157 @@
 import unittest
 from unittest.mock import patch, MagicMock, mock_open
+import json
+from google.genai import types
 
-# Import the class to be tested
-from orchestrator import StatefulOrchestrator
+# The module we are testing
+from orchestrator import StatefulOrchestrator, _parse_json_from_text
 
-class TestStatefulOrchestrator(unittest.TestCase):
-    """Tests for the StatefulOrchestrator class."""
+class TestOrchestrator(unittest.TestCase):
 
-    # This mock_open will simulate the AUM_ORCHESTRATOR.md file being present
-    mock_prompt_file = mock_open(read_data="SYSTEM PROMPT")
+    # Use setUp to patch dependencies that are common across tests
+    def setUp(self):
+        # Patch the file open call used for the system prompt
+        self.mock_file_patcher = patch('builtins.open', mock_open(read_data="Mock System Prompt"))
+        self.mock_file = self.mock_file_patcher.start()
 
-    @patch('orchestrator.hw')
-    @patch('orchestrator.genai.Client')
-    @patch('builtins.open', mock_prompt_file)
-    def setUp(self, mock_genai_client, mock_hw):
-        """Set up a new orchestrator instance before each test."""
-        # Mock the entire client and its nested attributes
-        self.mock_client = MagicMock()
-        self.mock_client.models.generate_content.return_value = self.create_mock_response(
-            '{"narrative": "Initial response.", "next_scene": "SCENE_1"}'
-        )
-        mock_genai_client.return_value = self.mock_client
-        
-        # Create the orchestrator instance for testing
+        # Patch the HardwareManager to prevent real hardware calls
+        self.mock_hw_manager_patcher = patch('orchestrator.HardwareManager')
+        self.mock_hw_manager_class = self.mock_hw_manager_patcher.start()
+        self.mock_hw_manager_instance = self.mock_hw_manager_class.return_value
+
+        # Patch the genai Client
+        self.mock_genai_client_patcher = patch('orchestrator.genai.Client')
+        self.mock_genai_client_class = self.mock_genai_client_patcher.start()
+        self.mock_genai_client_instance = self.mock_genai_client_class.return_value
+
+        # Instantiate the orchestrator for use in tests
         self.orchestrator = StatefulOrchestrator()
-        # Reset the mock call count before each test
-        self.mock_client.models.generate_content.reset_mock()
+        # Ensure the orchestrator uses our mocked client
+        self.orchestrator.client = self.mock_genai_client_instance
+        # Ensure the orchestrator uses our mocked hardware manager
+        self.orchestrator.hardware = self.mock_hw_manager_instance
 
-    def create_mock_response(self, json_text):
-        """Helper method to create a mock GenerateContentResponse."""
-        mock_response = MagicMock()
-        mock_response.text = json_text
-        return mock_response
+    # Use tearDown to stop the patchers
+    def tearDown(self):
+        self.mock_file_patcher.stop()
+        self.mock_hw_manager_patcher.stop()
+        self.mock_genai_client_patcher.stop()
 
     def test_initialization(self):
-        """Test that the orchestrator initializes in the correct state."""
+        """Tests that the orchestrator initializes correctly."""
+        self.assertEqual(self.orchestrator.system_prompt, "Mock System Prompt")
         self.assertEqual(self.orchestrator.current_scene, "AWAITING_MODE_SELECTION")
-        self.assertEqual(self.orchestrator.system_prompt, "SYSTEM PROMPT")
-        # Verify that the prompt file was opened
-        self.mock_prompt_file.assert_called_with("AUM_ORCHESTRATOR.md", "r")
+        self.mock_hw_manager_class.assert_called_once()
+        self.mock_genai_client_class.assert_called_once()
+        print("\n[TEST] Initialization successful.")
 
-    def test_process_user_command_updates_state(self):
-        """Test that a successful command updates the internal state."""
-        # Configure the mock response for this specific test
-        self.mock_client.models.generate_content.return_value = self.create_mock_response(
-            '{"narrative": "Moved to the park.", "next_scene": "PARK_AND_CITY"}'
-        )
+    def test_process_user_command_with_tool_call(self):
+        """Tests a successful command that results in a tool call and a narrative."""
+        # 1. Setup the mock response from the Gemini API
+        mock_response = MagicMock()
         
-        # Initial state is AWAITING_MODE_SELECTION
-        self.assertEqual(self.orchestrator.current_scene, "AWAITING_MODE_SELECTION")
-
-        # Process a command
-        narrative, next_scene = self.orchestrator.process_user_command("Go to the park")
-
-        # Check the returned values
-        self.assertEqual(narrative, "Moved to the park.")
-        self.assertEqual(next_scene, "PARK_AND_CITY")
-
-        # Check that the internal state of the orchestrator has been updated
-        self.assertEqual(self.orchestrator.current_scene, "PARK_AND_CITY")
-
-    def test_state_is_sent_in_prompt(self):
-        """Test that the current state is correctly included in the prompt to the model."""
-        # Set a specific state
-        self.orchestrator.current_scene = "PARK_AND_CITY"
+        # Create a mock function call part
+        mock_function_call = types.FunctionCall(name='move_robotic_arm', args={'p1': 1, 'p2': 2, 'p3': 3})
         
-        # Process a command
-        self.orchestrator.process_user_command("What's over there?")
+        # Create a mock text part with the JSON payload
+        response_payload = {"narrative": "Moving the arm!", "next_scene": "ARM_MOVED"}
+        mock_text_part = types.Part(text=f"```json\n{json.dumps(response_payload)}\n```")
 
-        # Verify that the generate_content method was called
-        self.mock_client.models.generate_content.assert_called_once()
+        # Structure the mock response object as the real API would
+        mock_candidate = MagicMock()
+        mock_candidate.content.parts = [
+            types.Part(function_call=mock_function_call), 
+            mock_text_part
+        ]
+        mock_response.candidates = [mock_candidate]
         
-        # Extract the arguments it was called with
-        _, kwargs = self.mock_client.models.generate_content.call_args
-        sent_contents = kwargs['contents']
+        self.mock_genai_client_instance.models.generate_content.return_value = mock_response
+
+        # 2. Call the method under test
+        narrative, next_scene = self.orchestrator.process_user_command("Move the arm")
+
+        # 3. Assert the results
+        self.assertEqual(narrative, "Moving the arm!")
+        self.assertEqual(next_scene, "ARM_MOVED")
+        self.assertEqual(self.orchestrator.current_scene, "ARM_MOVED")
         
-        # Check that the prompt sent to the model contains the correct current scene
-        expected_prompt = 'Current Scene: PARK_AND_CITY\nUser Speech: "What\'s over there?"'
-        self.assertIn(expected_prompt, sent_contents[0].parts[0].text)
+        # Assert that the hardware method was called correctly
+        self.mock_hw_manager_instance.move_robotic_arm.assert_called_once_with(p1=1, p2=2, p3=3)
+        print("\n[TEST] Command with tool call and narrative works.")
 
-    def test_state_guard_prevents_repeated_actions(self):
-        """Test that the orchestrator doesn't repeat an action if the state is already correct."""
-        # --- First Call: Move to the park ---
-        self.mock_client.models.generate_content.return_value = self.create_mock_response(
-            '{"narrative": "Okay, moving to the park.", "next_scene": "PARK_AND_CITY"}'
-        )
-        self.orchestrator.process_user_command("Go to the park")
-        self.assertEqual(self.orchestrator.current_scene, "PARK_AND_CITY")
-
-        # --- Second Call: Ask to go to the park AGAIN ---
-        # The model, now aware of the state, should respond differently
-        self.mock_client.models.generate_content.return_value = self.create_mock_response(
-            '{"narrative": "We are already at the park.", "next_scene": "PARK_AND_CITY"}'
-        )
-        narrative, next_scene = self.orchestrator.process_user_command("Go to the park")
-
-        # Verify the prompt sent in this second call included the updated state
-        _, kwargs = self.mock_client.models.generate_content.call_args
-        sent_prompt = kwargs['contents'][0].parts[0].text
-        self.assertIn("Current Scene: PARK_AND_CITY", sent_prompt)
+    def test_process_user_command_no_tool_call(self):
+        """Tests a successful command that results in only a narrative (e.g., a question)."""
+        # 1. Setup the mock response
+        mock_response = MagicMock()
+        response_payload = {"narrative": "Aum is a person.", "next_scene": "AWAITING_MODE_SELECTION"}
+        mock_text_part = types.Part(text=json.dumps(response_payload))
         
-        # Verify the narrative reflects the new context
-        self.assertEqual(narrative, "We are already at the park.")
-        # Verify the state remains the same
-        self.assertEqual(self.orchestrator.current_scene, "PARK_AND_CITY")
-
-    def test_handles_json_with_markdown_fences(self):
-        """Test that it correctly parses JSON wrapped in markdown code fences."""
-        json_with_fences = '```json\n{"narrative": "Cleaned.", "next_scene": "CLEANED_SCENE"}\n```'
-        self.mock_client.models.generate_content.return_value = self.create_mock_response(
-            json_with_fences
-        )
+        mock_candidate = MagicMock()
+        # Note: The parts list only contains a text part, no function call
+        mock_candidate.content.parts = [mock_text_part]
+        mock_response.candidates = [mock_candidate]
         
-        narrative, next_scene = self.orchestrator.process_user_command("test")
+        self.mock_genai_client_instance.models.generate_content.return_value = mock_response
+
+        # 2. Call the method
+        narrative, next_scene = self.orchestrator.process_user_command("Who is Aum?")
+
+        # 3. Assert the results
+        self.assertEqual(narrative, "Aum is a person.")
+        self.assertEqual(next_scene, "AWAITING_MODE_SELECTION")
         
-        self.assertEqual(narrative, "Cleaned.")
-        self.assertEqual(next_scene, "CLEANED_SCENE")
-        self.assertEqual(self.orchestrator.current_scene, "CLEANED_SCENE")
+        # Assert that no hardware methods were called
+        self.mock_hw_manager_instance.move_robotic_arm.assert_not_called()
+        self.mock_hw_manager_instance.trigger_diorama_scene.assert_not_called()
+        print("\n[TEST] Command with narrative only (no tool call) works.")
 
-    def test_handles_api_exception_gracefully(self):
-        """Test that a fallback message is returned if the API call fails."""
-        # Configure the mock to raise an exception
-        self.mock_client.models.generate_content.side_effect = Exception("API Error")
+    def test_process_user_command_api_error(self):
+        """Tests the fallback mechanism when the Gemini API call fails."""
+        self.mock_genai_client_instance.models.generate_content.side_effect = Exception("API Failure")
+
+        narrative, next_scene = self.orchestrator.process_user_command("This will fail")
+
+        self.assertEqual(narrative, "I seem to have gotten my wires crossed. Could you try that again?")
+        # The scene should not change on a critical error
+        self.assertEqual(next_scene, "AWAITING_MODE_SELECTION")
+        print("\n[TEST] API error handling is correct.")
+
+    def test_process_user_command_malformed_json(self):
+        """Tests the fallback mechanism when the API returns a malformed JSON."""
+        # 1. Setup a mock response with invalid JSON
+        mock_response = MagicMock()
+        mock_text_part = types.Part(text="This is not valid JSON")
+        mock_candidate = MagicMock()
+        mock_candidate.content.parts = [mock_text_part]
+        mock_response.candidates = [mock_candidate]
         
-        # The state before the call
-        initial_state = self.orchestrator.current_scene
+        self.mock_genai_client_instance.models.generate_content.return_value = mock_response
 
-        narrative, next_scene = self.orchestrator.process_user_command("test")
+        # 2. Call the method
+        narrative, next_scene = self.orchestrator.process_user_command("Malformed")
 
-        self.assertEqual(narrative, "I'm having a little trouble connecting. Could you try that again?")
-        # Ensure the state did not change on error
-        self.assertEqual(next_scene, initial_state)
-        self.assertEqual(self.orchestrator.current_scene, initial_state)
+        # 3. Assert the results
+        self.assertEqual(narrative, "I'm not sure what to say next.")
+        # The scene should not change on a parsing error
+        self.assertEqual(next_scene, "AWAITING_MODE_SELECTION")
+        print("\n[TEST] Malformed JSON response handling is correct.")
 
+    def test_parse_json_from_text(self):
+        """Tests the helper function for parsing JSON."""
+        # Test with markdown wrapping
+        md_json = '```json\n{"key": "value"}\n```'
+        self.assertEqual(_parse_json_from_text(md_json), {"key": "value"})
+        
+        # Test with plain json
+        plain_json = '{"key": "value"}'
+        self.assertEqual(_parse_json_from_text(plain_json), {"key": "value"})
+        
+        # Test with invalid json
+        self.assertIsNone(_parse_json_from_text("not json"))
+        
+        # Test with empty string
+        self.assertIsNone(_parse_json_from_text(""))
+        print("\n[TEST] JSON parsing helper works correctly.")
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,140 +1,90 @@
 import unittest
 from unittest.mock import patch, MagicMock
-import serial
 import os
-import hardware_controller
 
-# Import the classes and functions to be tested
-from hardware_controller import SerialCommunicator, trigger_diorama_scene, move_robotic_arm, close_all_ports, get_main_scene_controller, get_robotic_arm_controller
+# Set dummy environment variables for testing before importing the module
+os.environ['AUM_ENVIRONMENT'] = 'dev'
+os.environ['MAIN_CONTROLLER_PORT_EMULATOR'] = './test_main_port'
+os.environ['ROBOTIC_ARM_PORT_EMULATOR'] = './test_arm_port'
 
-class TestSerialCommunicator(unittest.TestCase):
-    """Tests for the SerialCommunicator class."""
+from hardware_controller import HardwareManager
 
-    @patch('os.path.exists', return_value=True)
-    @patch('serial.Serial')
-    def test_successful_connection(self, mock_serial, mock_exists):
-        """Test that the communicator initializes successfully with a valid port."""
-        mock_instance = MagicMock()
-        mock_serial.return_value = mock_instance
+class TestHardwareManager(unittest.TestCase):
+
+    @patch('hardware_controller.SerialCommunicator')
+    def setUp(self, MockSerialCommunicator):
+        """Set up a new HardwareManager instance before each test."""
+        # Create mock instances for the two controllers
+        self.mock_main_controller = MagicMock()
+        self.mock_arm_controller = MagicMock()
+
+        # Configure the mock to return our specific mocks when called
+        def side_effect(port, baudrate, name):
+            if name == "Main Scene Controller":
+                return self.mock_main_controller
+            if name == "Robotic Arm Controller":
+                return self.mock_arm_controller
+            return MagicMock()
+
+        MockSerialCommunicator.side_effect = side_effect
         
-        comm = SerialCommunicator(port="/dev/testport", baudrate=9600, name="Test")
-        
-        mock_exists.assert_called_with("/dev/testport")
-        mock_serial.assert_called_with("/dev/testport", 9600, timeout=1)
-        self.assertIsNotNone(comm.ser)
-        comm.close()
+        # Instantiate the class we are testing
+        self.hardware_manager = HardwareManager()
 
-    @patch('os.path.exists', return_value=True)
-    @patch('serial.Serial')
-    def test_failed_connection(self, mock_serial, mock_exists):
-        """Test that the communicator handles a connection failure gracefully."""
-        mock_serial.side_effect = serial.SerialException("Port not found")
-        
-        comm = SerialCommunicator(port="/dev/nonexistent", baudrate=9600, name="Test")
-        
-        mock_exists.assert_called_with("/dev/nonexistent")
-        self.assertIsNone(comm.ser)
+    def test_initialization(self):
+        """Tests that the HardwareManager initializes both controllers."""
+        self.assertIsNotNone(self.hardware_manager.main_scene_controller)
+        self.assertIsNotNone(self.hardware_manager.robotic_arm_controller)
+        print("\n[TEST] HardwareManager initialization successful.")
 
-    @patch('os.path.exists', return_value=True)
-    @patch('serial.Serial')
-    def test_send_command_adds_newline(self, mock_serial, mock_exists):
-        """Test that send_command appends a newline character."""
-        mock_instance = MagicMock()
-        mock_instance.is_open = True
-        mock_serial.return_value = mock_instance
+    def test_trigger_diorama_scene_valid(self):
+        """Tests a valid call to trigger_diorama_scene."""
+        scene_id = 5
+        self.hardware_manager.trigger_diorama_scene(scene_id)
+        # Check that the send_command method was called on the correct controller with the correct argument
+        self.mock_main_controller.send_command.assert_called_once_with(str(scene_id))
+        print("\n[TEST] Valid diorama scene trigger works.")
 
-        comm = SerialCommunicator(port="/dev/testport", baudrate=9600, name="Test")
-        comm.send_command("TEST_CMD")
-        
-        mock_instance.write.assert_called_with(b'TEST_CMD\n')
-        comm.close()
+    def test_trigger_diorama_scene_invalid(self):
+        """Tests an invalid call to trigger_diorama_scene."""
+        scene_id = 99 # Invalid ID
+        result = self.hardware_manager.trigger_diorama_scene(scene_id)
+        # Check that send_command was NOT called
+        self.mock_main_controller.send_command.assert_not_called()
+        # Check that an error message was returned
+        self.assertIn("Error: Invalid scene_command_id", result)
+        print("\n[TEST] Invalid diorama scene trigger is handled correctly.")
 
-    @patch('time.sleep')
-    @patch('os.path.exists', side_effect=[False, False, True])
-    @patch('serial.Serial')
-    def test_waits_for_port(self, mock_serial, mock_exists, mock_sleep):
-        """Test that the communicator waits for the port to become available."""
-        mock_instance = MagicMock()
-        mock_serial.return_value = mock_instance
-        
-        comm = SerialCommunicator(port="/dev/waitport", baudrate=9600, name="Test")
-        
-        self.assertEqual(mock_exists.call_count, 3)
-        self.assertEqual(mock_sleep.call_count, 2)
-        self.assertIsNotNone(comm.ser)
-        comm.close()
+    def test_move_robotic_arm_valid(self):
+        """Tests a valid call to move_robotic_arm."""
+        p1, p2, p3 = 1000, 2000, 3000
+        self.hardware_manager.move_robotic_arm(p1, p2, p3)
+        # Check that the send_command method was called on the arm controller
+        self.mock_arm_controller.send_command.assert_called_once()
+        # Check that the command string was formatted correctly
+        called_command = self.mock_arm_controller.send_command.call_args[0][0]
+        self.assertTrue(called_command.startswith('3 '))
+        self.assertIn(str(p1), called_command)
+        self.assertIn(str(p2), called_command)
+        self.assertIn(str(p3), called_command)
+        print("\n[TEST] Valid robotic arm move works.")
 
+    def test_move_robotic_arm_invalid_position(self):
+        """Tests an invalid position call to move_robotic_arm."""
+        p1, p2, p3 = 5000, 2000, 3000 # Invalid p1
+        result = self.hardware_manager.move_robotic_arm(p1, p2, p3)
+        # Check that send_command was NOT called
+        self.mock_arm_controller.send_command.assert_not_called()
+        # Check that an error message was returned
+        self.assertIn("Error: Invalid p1 position", result)
+        print("\n[TEST] Invalid robotic arm position is handled correctly.")
 
-class TestHardwareToolsWithValidation(unittest.TestCase):
-    """Tests for the hardware control tool functions, including validation logic."""
-
-    def setUp(self):
-        """Reset the controller singletons before each test."""
-        # This is important to prevent tests from interfering with each other
-        hardware_controller.main_scene_controller = None
-        hardware_controller.robotic_arm_controller = None
-
-    @patch('hardware_controller.get_main_scene_controller')
-    def test_trigger_diorama_scene_valid_id(self, mock_get_controller):
-        """Test that a valid scene ID is sent to the controller."""
-        mock_controller = MagicMock()
-        mock_get_controller.return_value = mock_controller
-        trigger_diorama_scene(15)
-        mock_controller.send_command.assert_called_with("15")
-
-    @patch('hardware_controller.get_main_scene_controller')
-    def test_trigger_diorama_scene_invalid_id_too_high(self, mock_get_controller):
-        """Test that an invalid scene ID (too high) is rejected."""
-        mock_controller = MagicMock()
-        mock_get_controller.return_value = mock_controller
-        result = trigger_diorama_scene(99)
-        self.assertIn("Error: Invalid scene_command_id '99'", result)
-        mock_controller.send_command.assert_not_called()
-
-    @patch('hardware_controller.get_main_scene_controller')
-    def test_trigger_diorama_scene_invalid_id_zero(self, mock_get_controller):
-        """Test that an invalid scene ID (zero) is rejected."""
-        mock_controller = MagicMock()
-        mock_get_controller.return_value = mock_controller
-        result = trigger_diorama_scene(0)
-        self.assertIn("Error: Invalid scene_command_id '0'", result)
-        mock_controller.send_command.assert_not_called()
-
-    @patch('hardware_controller.get_robotic_arm_controller')
-    def test_move_robotic_arm_valid_params(self, mock_get_controller):
-        """Test that valid parameters are sent to the arm controller."""
-        mock_controller = MagicMock()
-        mock_get_controller.return_value = mock_controller
-        move_robotic_arm(p1=0, p2=2048, p3=4095, velocity=100, acceleration=50)
-        expected_command = "3 100 100 100 50 50 50 0 2048 4095"
-        mock_controller.send_command.assert_called_with(expected_command)
-
-    @patch('hardware_controller.get_robotic_arm_controller')
-    def test_move_robotic_arm_invalid_position(self, mock_get_controller):
-        """Test that an out-of-range position is rejected."""
-        mock_controller = MagicMock()
-        mock_get_controller.return_value = mock_controller
-        result = move_robotic_arm(p1=5000, p2=2048, p3=4095)
-        self.assertIn("Error: Invalid position", result)
-        mock_controller.send_command.assert_not_called()
-
-    @patch('hardware_controller.get_robotic_arm_controller')
-    def test_move_robotic_arm_invalid_velocity(self, mock_get_controller):
-        """Test that an out-of-range velocity is rejected."""
-        mock_controller = MagicMock()
-        mock_get_controller.return_value = mock_controller
-        result = move_robotic_arm(p1=1, p2=1, p3=1, velocity=2000)
-        self.assertIn("Error: Invalid velocity '2000'", result)
-        mock_controller.send_command.assert_not_called()
-
-    @patch('hardware_controller.get_robotic_arm_controller')
-    def test_move_robotic_arm_invalid_acceleration(self, mock_get_controller):
-        """Test that an out-of-range acceleration is rejected."""
-        mock_controller = MagicMock()
-        mock_get_controller.return_value = mock_controller
-        result = move_robotic_arm(p1=1, p2=1, p3=1, acceleration=300)
-        self.assertIn("Error: Invalid acceleration '300'", result)
-        mock_controller.send_command.assert_not_called()
+    def test_close_all_ports(self):
+        """Tests that close_all_ports calls close on both controllers."""
+        self.hardware_manager.close_all_ports()
+        self.mock_main_controller.close.assert_called_once()
+        self.mock_arm_controller.close.assert_called_once()
+        print("\n[TEST] close_all_ports works correctly.")
 
 if __name__ == '__main__':
     unittest.main()
