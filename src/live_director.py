@@ -90,6 +90,8 @@ class AumDirectorApp:
                     for call in response.tool_call.function_calls:
                         tool_name = call.name
                         if tool_name == "process_user_command":
+                            # Simple debounce to avoid rapid-fire tool calls
+                            await asyncio.sleep(0.25)
                             command = call.args["command"]
                             logging.info(
                                 f'[DIRECTOR] ---> User speech detected: "{command}"'
