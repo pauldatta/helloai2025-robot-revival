@@ -103,3 +103,11 @@ When running with the physical Arduino hardware, the application requires a diff
   source venv/bin/activate
   python -m unittest discover tests
   ```
+
+## Research
+
+Here are some resources that provide context and background for the story of Aum:
+
+-   **The Story of Aum (Video):** [Watch on YouTube](https://www.youtube.com/watch?v=VBhLYy2LCjQ&t=1s)
+-   **Google for Thailand Blog Post:** [Read on Google Blog](https://blog.google/around-the-globe/google-asia/googleforthailand/?utm_source=tw&utm_medium&utm_campaign=og)
+-   **Across the Pond - Google Aum's Reunion:** [View the Case Study](https://acrossthepond.com/work/google-aums-reunion)
