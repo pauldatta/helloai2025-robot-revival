@@ -1,0 +1,7 @@
+# This command will be invoked via: /context:refresh
+description = "Reloads the Gemini API documentation from the context/ folder."
+prompt = """
+Okay, I will refresh my context. Please read the following files and use them as my primary source of truth for our project's conventions and APIs.
+
+!{find context -name 'GEMINI*.md' -exec echo "--- {} ---" \; -exec cat {} \;}
+"""
