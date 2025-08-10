@@ -61,6 +61,16 @@ You can also make one scene an alias for another by setting its value to the str
 
 This configuration makes the `GUIDED_MODE_AUMS_HOME` scene execute the same actions as the `AUMS_HOME` scene.
 
+## Development Workflow with Gemini CLI
+
+This project includes custom commands for the Gemini CLI to accelerate common development tasks. These commands are defined in the `.gemini/commands/` directory.
+
+| Command                         | Description                                                                                                                                                  |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `/context:refresh`              | Reloads the Gemini API and project convention documents from the `context/` directory. Use this if the assistant seems to be forgetting project-specific details. |
+| `/dev:test`                     | Runs the complete Python unit test suite using the virtual environment.                                                                                      |
+| `/git:commit_and_push [message]` | Initiates an interactive commit and push. It will analyze staged changes and generate a Conventional Commit message if one isn't provided.                   |
+
 ## Getting Started
 
 ### 1. Initial Setup
