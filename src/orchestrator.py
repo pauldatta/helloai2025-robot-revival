@@ -10,44 +10,80 @@ from .hardware_controller import HardwareManager
 # This dictionary maps a scene name to a list of hardware actions.
 # This makes it easy to add new actions (like video) without changing the core logic.
 SCENE_ACTIONS = {
+    # --- Main Story Scenes ---
+
     "AUMS_HOME": [
-        {"action": "trigger_diorama_scene", "params": {"scene_command_id": 2}},
+        # Corresponds to S3: Story of Aum | Aum's Home and S4: Aum's Home - zoom in
+        {"action": "trigger_diorama_scene", "params": {"scene_command_id": 2}}, # Inferred from "home" button
         {"action": "move_robotic_arm", "params": {"p1": 2468, "p2": 68, "p3": 3447}},
-        {
-            "action": "play_video",
-            "params": {"video_file": "part1_lost_in_the_city.mp4"},
-        },
+        {"action": "play_video", "params": {"video_file": "part1_lost_in_the_city.mp4"}},
     ],
-    "PARK_AND_CITY": [
-        {"action": "trigger_diorama_scene", "params": {"scene_command_id": 4}},
+    "AUM_CRYING": [
+        # Corresponds to S5: Aum Crying
+        {"action": "trigger_diorama_scene", "params": {"scene_command_id": 4}}, # Inferred from "cry" button
         {"action": "move_robotic_arm", "params": {"p1": 2457, "p2": 79, "p3": 3447}},
+        # This could be part of the part1 video or a separate clip.
+    ],
+    "BUS_SOCCER": [
+        # Corresponds to S6a: Bus and S6b: Bus - Soccer
+        {"action": "trigger_diorama_scene", "params": {"scene_command_id": 5}}, # Guessing ID
+        {"action": "move_robotic_arm", "params": {"p1": 0, "p2": 0, "p3": 0}}, # Needs coordinates
+    ],
+    "MARKET": [
+        # Corresponds to S9: Market
+        {"action": "trigger_diorama_scene", "params": {"scene_command_id": 3}}, # Guessing ID
+        {"action": "move_robotic_arm", "params": {"p1": 0, "p2": 0, "p3": 0}}, # Needs coordinates
         {"action": "play_video", "params": {"video_file": "part2_glimmer_of_hope.mp4"}},
     ],
+     "AUM_GROWS_UP": [
+        # Corresponds to S10: Aum Grew Up
+        {"action": "trigger_diorama_scene", "params": {"scene_command_id": 7}}, # Guessing ID
+        {"action": "move_robotic_arm", "params": {"p1": 0, "p2": 0, "p3": 0}}, # Needs coordinates
+    ],
     "ROAD_TO_HUA_HIN": [
-        {"action": "trigger_diorama_scene", "params": {"scene_command_id": 6}},
+        # Corresponds to S11a: Aum to Hua Hin and S11b: Aum reach Hua Hin
+        {"action": "trigger_diorama_scene", "params": {"scene_command_id": 6}}, # Inferred from "aunty" button
         {"action": "move_robotic_arm", "params": {"p1": 2457, "p2": 68, "p3": 3436}},
     ],
     "INTERNET_CAFE": [
-        {"action": "trigger_diorama_scene", "params": {"scene_command_id": 8}},
+        # Corresponds to S12a: Cafe and S12b: Cafe
+        {"action": "trigger_diorama_scene", "params": {"scene_command_id": 8}}, # Inferred from "phone" button
         {"action": "move_robotic_arm", "params": {"p1": 2446, "p2": 68, "p3": 3436}},
         {"action": "play_video", "params": {"video_file": "part3_the_search.mp4"}},
     ],
-    "MAP_VISUAL": [
-        {"action": "trigger_diorama_scene", "params": {"scene_command_id": 10}},
+    "GOOGLE_MAP": [
+        # Corresponds to S13: Google Map
+        {"action": "trigger_diorama_scene", "params": {"scene_command_id": 10}}, # Inferred from "map" button
         {"action": "move_robotic_arm", "params": {"p1": 4000, "p2": 1500, "p3": 3800}},
         {"action": "play_video", "params": {"video_file": "part4_the_path_home.mp4"}},
     ],
     "ROAD_TO_BANGKOK": [
-        {"action": "trigger_diorama_scene", "params": {"scene_command_id": 12}},
+        # Corresponds to S14a: Aum back to BK and S14b: Aum back to BK
+        {"action": "trigger_diorama_scene", "params": {"scene_command_id": 11}}, # Guessing ID
         {"action": "move_robotic_arm", "params": {"p1": 3800, "p2": 1300, "p3": 3700}},
         {"action": "play_video", "params": {"video_file": "part5_the_reunion.mp4"}},
     ],
-    # Guided mode scenes just reference the free-roam scenes
+
+    # --- System & Utility Scenes ---
+    
+    "IDLE": [
+        # Corresponds to S0: Rest
+        {"action": "trigger_diorama_scene", "params": {"scene_command_id": 0}},
+        {"action": "move_robotic_arm", "params": {"p1": 0, "p2": 0, "p3": 0}}, # Needs coordinates
+    ],
+    "FINDING_BOY": [
+        # Corresponds to S2: Finding Boy (likely an intro/attract scene)
+        {"action": "trigger_diorama_scene", "params": {"scene_command_id": 1}},
+        {"action": "move_robotic_arm", "params": {"p1": 0, "p2": 0, "p3": 0}}, # Needs coordinates
+    ],
+
+    # --- Guided Mode ---
+    # References the main story scenes
     "GUIDED_MODE_AUMS_HOME": "AUMS_HOME",
-    "GUIDED_MODE_PARK_AND_CITY": "PARK_AND_CITY",
+    "GUIDED_MODE_MARKET": "MARKET",
     "GUIDED_MODE_ROAD_TO_HUA_HIN": "ROAD_TO_HUA_HIN",
     "GUIDED_MODE_INTERNET_CAFE": "INTERNET_CAFE",
-    "GUIDED_MODE_MAP_VISUAL": "MAP_VISUAL",
+    "GUIDED_MODE_GOOGLE_MAP": "GOOGLE_MAP",
     "GUIDED_MODE_ROAD_TO_BANGKOK": "ROAD_TO_BANGKOK",
 }
 

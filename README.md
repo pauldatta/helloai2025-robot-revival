@@ -28,6 +28,39 @@ The project includes a real-time web interface for monitoring and control, acces
 -   `tests/`: Contains unit tests.
 -   `context/`: Contains story context, diagrams, and original hardware code.
 
+## Customizing Scenes and Actions
+
+The core of the installation's physical behavior is defined in the `SCENE_ACTIONS` dictionary, located at the top of the `src/orchestrator.py` file. This dictionary maps a narrative scene name to a sequence of hardware actions, making it easy to customize the experience without altering the core logic.
+
+### Structure
+
+Each scene is a key in the dictionary. Its value is a list of action objects, where each object has an `action` and `params` key.
+
+```python
+"SCENE_NAME": [
+    {"action": "action_type_1", "params": {"param_a": "value_1"}},
+    {"action": "action_type_2", "params": {"param_b": 123}},
+]
+```
+
+### Available Actions
+
+| Action                    | Description                                                                                                     | Parameters                                                              |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `trigger_diorama_scene`   | Sends a numeric ID to the main Arduino controller to trigger a specific, pre-programmed light and motor sequence. | `scene_command_id` (integer): The ID for the scene in the Arduino code. |
+| `move_robotic_arm`        | Moves the robotic arm to a specific coordinate.                                                                 | `p1`, `p2`, `p3` (integers): The coordinates for the arm's position.      |
+| `play_video`              | Plays a video file on the connected tablet. Video files are located in the `context/` directory.                  | `video_file` (string): The name of the video file.                      |
+
+### Scene Aliasing
+
+You can also make one scene an alias for another by setting its value to the string name of the target scene. This is useful for creating different narrative paths (like the guided mode) that reuse the same hardware actions.
+
+```python
+"GUIDED_MODE_AUMS_HOME": "AUMS_HOME",
+```
+
+This configuration makes the `GUIDED_MODE_AUMS_HOME` scene execute the same actions as the `AUMS_HOME` scene.
+
 ## Getting Started
 
 ### 1. Initial Setup
