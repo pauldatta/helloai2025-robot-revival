@@ -88,7 +88,7 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
             scene_command_id=2
         )
         self.orchestrator.hardware.move_robotic_arm.assert_called_once_with(
-            p1=2468, p2=68, p3=3447
+            p1=2468, p2=68, p3=2980
         )
         self.orchestrator.hardware.play_video.assert_called_once_with(
             video_file="part1_lost_in_the_city.mp4"
