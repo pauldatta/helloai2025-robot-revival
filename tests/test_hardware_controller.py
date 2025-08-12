@@ -65,6 +65,9 @@ class TestHardwareManager(unittest.IsolatedAsyncioTestCase):
         self.assertIn(str(p1), called_command)
         self.assertIn(str(p2), called_command)
         self.assertIn(str(p3), called_command)
+        # Check the exact command format
+        expected_command = f"3 50 50 50 5 5 5 {p1} {p2} {p3}"
+        self.assertEqual(called_command, expected_command)
         print("\n[TEST] Valid robotic arm move works.")
 
     async def test_move_robotic_arm_invalid_position(self):
@@ -81,6 +84,51 @@ class TestHardwareManager(unittest.IsolatedAsyncioTestCase):
         self.mock_main_controller.close.assert_called_once()
         self.mock_arm_controller.close.assert_called_once()
         print("\n[TEST] close_all_ports works correctly.")
+
+
+class TestHardwareManagerValidation(unittest.TestCase):
+    def setUp(self):
+        """Set up a new HardwareManager instance for validation tests."""
+        # We don't need mocks for this, just the instance
+        self.hardware_manager = HardwareManager()
+
+    def test_validate_params_all_valid(self):
+        """Test _validate_params with a set of all valid parameters."""
+        result = self.hardware_manager._validate_params(
+            p1=100, p2=200, p3=300, velocity=50, acceleration=10, scene_command_id=1
+        )
+        self.assertIsNone(result)
+        print("\n[TEST] _validate_params handles all valid inputs.")
+
+    def test_validate_params_invalid_scene_id(self):
+        """Test _validate_params with an invalid scene_command_id."""
+        result = self.hardware_manager._validate_params(scene_command_id=99)
+        self.assertIn("Invalid scene_command_id", result)
+        print("\n[TEST] _validate_params catches invalid scene_id.")
+
+    def test_validate_params_invalid_p1(self):
+        """Test _validate_params with an invalid p1 position."""
+        result = self.hardware_manager._validate_params(p1=9999)
+        self.assertIn("Invalid p1 position", result)
+        print("\n[TEST] _validate_params catches invalid p1.")
+
+    def test_validate_params_invalid_velocity(self):
+        """Test _validate_params with an invalid velocity."""
+        result = self.hardware_manager._validate_params(velocity=2000)
+        self.assertIn("Invalid velocity", result)
+        print("\n[TEST] _validate_params catches invalid velocity.")
+
+    def test_validate_params_invalid_acceleration(self):
+        """Test _validate_params with an invalid acceleration."""
+        result = self.hardware_manager._validate_params(acceleration=300)
+        self.assertIn("Invalid acceleration", result)
+        print("\n[TEST] _validate_params catches invalid acceleration.")
+
+    def test_validate_params_only_some_params(self):
+        """Test _validate_params with a subset of parameters."""
+        result = self.hardware_manager._validate_params(p1=100, velocity=50)
+        self.assertIsNone(result)
+        print("\n[TEST] _validate_params handles a subset of valid inputs.")
 
 
 if __name__ == "__main__":

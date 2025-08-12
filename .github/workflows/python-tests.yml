@@ -40,4 +40,4 @@ jobs:
       env:
         GEMINI_API_KEY: "DUMMY_KEY_FOR_TESTING"
       run: |
-        python -m unittest discover tests
+        pytest

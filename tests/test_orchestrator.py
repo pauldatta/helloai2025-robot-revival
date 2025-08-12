@@ -148,6 +148,45 @@ class TestOrchestrator(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(_parse_json_from_text(""))
         print("\n[TEST] JSON parsing helper works correctly.")
 
+    async def test_execute_scene_by_name(self):
+        """Tests that executing a scene by name calls the correct hardware actions."""
+        self.orchestrator.hardware.trigger_diorama_scene = AsyncMock()
+        self.orchestrator.hardware.move_robotic_arm = AsyncMock()
+        self.orchestrator.hardware.play_video = AsyncMock()
+
+        scene_to_test = "MARKET"
+        await self.orchestrator.execute_scene_by_name(scene_to_test)
+
+        # Wait for background tasks
+        await asyncio.sleep(0.01)
+        tasks = self.orchestrator.background_tasks
+        if tasks:
+            await asyncio.gather(*tasks)
+
+        self.assertEqual(self.orchestrator.current_scene, scene_to_test)
+        self.orchestrator.hardware.trigger_diorama_scene.assert_called_once_with(
+            scene_command_id=3
+        )
+        self.orchestrator.hardware.move_robotic_arm.assert_called_once_with(
+            p1=2457, p2=68, p3=3436
+        )
+        self.orchestrator.hardware.play_video.assert_called_once_with(
+            video_file="part2_glimmer_of_hope.mp4"
+        )
+        print("\n[TEST] Executing scene by name triggers correct hardware actions.")
+
+    async def test_execute_manual_arm_move(self):
+        """Tests that a manual arm move command calls the hardware correctly."""
+        self.orchestrator.hardware.move_robotic_arm = AsyncMock()
+
+        await self.orchestrator.execute_manual_arm_move(p1=1, p2=2, p3=3)
+
+        self.assertEqual(self.orchestrator.current_scene, "MANUAL_OVERRIDE")
+        self.orchestrator.hardware.move_robotic_arm.assert_called_once_with(
+            p1=1, p2=2, p3=3
+        )
+        print("\n[TEST] Manual arm move command is executed correctly.")
+
 
 if __name__ == "__main__":
     unittest.main()

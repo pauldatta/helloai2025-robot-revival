@@ -13,3 +13,8 @@ uvicorn
 websockets
 aiofiles
 python-json-logger
+
+# Testing
+pytest
+pytest-asyncio
+httpx
