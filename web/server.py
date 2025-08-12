@@ -1,15 +1,20 @@
 import asyncio
 import aiofiles
+import json
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 import logging
+from typing import List, Set
+from websockets.exceptions import ConnectionClosed
 
 app = FastAPI()
 
-# In-memory list of connected clients for broadcasting
-log_clients = []
-control_clients = []
+# --- WebSocket Connection Management ---
+# A more robust way to handle different client types.
+log_clients: List[WebSocket] = []
+director_socket: WebSocket = None
+ui_control_sockets: Set[WebSocket] = set()
 
 # Mount a static directory to serve images, CSS, etc.
 app.mount("/static", StaticFiles(directory="context"), name="static")
@@ -25,25 +30,27 @@ async def get_main():
 
 
 async def log_sender(websocket: WebSocket):
-    """Tails the log file and sends new lines to the client."""
+    """Tails the log file and sends new lines to all connected log clients."""
     log_clients.append(websocket)
     try:
         async with aiofiles.open(log_file_path, mode="r") as f:
-            await f.seek(0, 2)
+            await f.seek(0, 2)  # Go to the end of the file
             while True:
                 line = await f.readline()
                 if not line:
                     await asyncio.sleep(0.1)
                     continue
-                # Broadcast to all connected clients
-                for client in log_clients:
+                # Use a copy of the list to avoid issues with concurrent modification
+                current_clients = list(log_clients)
+                for client in current_clients:
                     await client.send_text(line.strip())
     except asyncio.CancelledError:
-        pass
+        pass  # Task was cancelled, expected behavior
     except Exception as e:
         logging.error(f"[WEB_SERVER] Error reading log file: {e}")
     finally:
-        log_clients.remove(websocket)
+        if websocket in log_clients:
+            log_clients.remove(websocket)
 
 
 @app.websocket("/ws/logs")
@@ -52,7 +59,8 @@ async def websocket_logs_endpoint(websocket: WebSocket):
     sender_task = asyncio.create_task(log_sender(websocket))
     try:
         while True:
-            await websocket.receive_text()  # Keep connection open
+            # Keep the connection alive, but we don't expect messages from the client
+            await websocket.receive_text()
     except WebSocketDisconnect:
         logging.info("[WEB_SERVER] Log client disconnected.")
     finally:
@@ -65,17 +73,74 @@ async def websocket_logs_endpoint(websocket: WebSocket):
 
 @app.websocket("/ws/control")
 async def websocket_control_endpoint(websocket: WebSocket):
-    """Handles incoming control commands from the web UI."""
+    """
+    Manages control commands. A client is initially treated as a UI.
+    If it sends an 'identify' message, it's re-classified as the director.
+    """
+    global director_socket
     await websocket.accept()
-    control_clients.append(websocket)
-    logging.info("[WEB_SERVER] Control client connected.")
+
+    # Initially, treat every connection as a potential UI client
+    client_socket = websocket
+    ui_control_sockets.add(client_socket)
+    logging.info(
+        f"[WEB_SERVER] A control client connected. Total UIs: {len(ui_control_sockets)}"
+    )
+
     try:
         while True:
-            data = await websocket.receive_text()
-            # For now, we just log the command.
-            # In the future, this would call the orchestrator.
-            logging.info(f"[WEB_CONTROL] Received command: {data}")
+            data = await client_socket.receive_text()
+
+            try:
+                message = json.loads(data)
+                # Check for the special identification message
+                if (
+                    message.get("type") == "identify"
+                    and message.get("client") == "director"
+                ):
+                    if director_socket is not None and director_socket != client_socket:
+                        logging.warning(
+                            "[WEB_SERVER] A second director tried to identify. Ignoring."
+                        )
+                        continue  # Don't process further
+
+                    # This is the director. Register it and remove from UI list.
+                    director_socket = client_socket
+                    if client_socket in ui_control_sockets:
+                        ui_control_sockets.remove(client_socket)
+                    logging.info("[WEB_SERVER] Director identified and registered.")
+                    # The director doesn't send other messages, so we just wait for disconnect
+                    # by continuing the loop but not processing other message types from it.
+                    continue
+
+            except json.JSONDecodeError:
+                # Not a json message, treat as legacy or ignore
+                pass
+
+            # If we're here, it's a command from a UI client. Forward it.
+            if director_socket and director_socket != client_socket:
+                logging.info(f"[WEB_CONTROL] Forwarding UI command to director: {data}")
+                try:
+                    await director_socket.send_text(data)
+                except ConnectionClosed:
+                    logging.error(
+                        "[WEB_CONTROL] Director is not connected. Command not sent."
+                    )
+                    director_socket = None  # Clear stale socket
+            elif not director_socket:
+                logging.warning(
+                    "[WEB_CONTROL] No director connected to forward command to."
+                )
+
     except WebSocketDisconnect:
         logging.info("[WEB_SERVER] Control client disconnected.")
     finally:
-        control_clients.remove(websocket)
+        # Clean up on disconnect
+        if client_socket == director_socket:
+            director_socket = None
+            logging.info("[WEB_SERVER] Director disconnected.")
+        if client_socket in ui_control_sockets:
+            ui_control_sockets.remove(client_socket)
+            logging.info(
+                f"[WEB_SERVER] UI client disconnected. Total UIs: {len(ui_control_sockets)}"
+            )

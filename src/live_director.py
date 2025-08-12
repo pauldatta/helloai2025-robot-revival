@@ -3,6 +3,8 @@ import logging
 import os
 import pyaudio
 import traceback
+import json
+import websockets
 from exceptiongroup import ExceptionGroup
 from google import genai
 from google.genai import types
@@ -36,6 +38,65 @@ class AumDirectorApp:
             f'[DIRECTOR] <--- Received narrative: "{narrative}" | New Scene: {scene_name}'
         )
         return {"narrative": narrative, "scene_name": scene_name}
+
+    async def listen_for_web_commands(self):
+        """Connects to the web server's control WebSocket and listens for commands."""
+        uri = "ws://localhost:8000/ws/control"
+        while True:
+            try:
+                async with websockets.connect(uri) as websocket:
+                    # Identify this client as the director upon connecting
+                    await websocket.send(
+                        json.dumps({"type": "identify", "client": "director"})
+                    )
+                    logging.info(
+                        "[DIRECTOR] Connected to web control WebSocket and identified."
+                    )
+
+                    while True:
+                        message = await websocket.recv()
+                        try:
+                            data = json.loads(message)
+                            command_type = data.get("type")
+
+                            if command_type == "trigger_scene":
+                                scene_name = data.get("scene_name")
+                                logging.info(
+                                    f"[DIRECTOR] Received web command to trigger scene: {scene_name}"
+                                )
+                                await self.orchestrator.execute_scene_by_name(
+                                    scene_name
+                                )
+
+                            elif command_type == "move_robotic_arm":
+                                params = data.get("params")
+                                logging.info(
+                                    f"[DIRECTOR] Received web command to move arm with params: {params}"
+                                )
+                                if params:
+                                    # Create a background task to prevent blocking the receive loop
+                                    asyncio.create_task(
+                                        self.orchestrator.execute_manual_arm_move(
+                                            **params
+                                        )
+                                    )
+
+                        except json.JSONDecodeError:
+                            logging.error(
+                                f"[DIRECTOR] Invalid JSON received from web control: {message}"
+                            )
+                        except Exception as e:
+                            logging.error(
+                                f"[DIRECTOR] Error processing web command: {e}"
+                            )
+            except (
+                websockets.exceptions.ConnectionClosedError,
+                ConnectionRefusedError,
+            ):
+                logging.warning(
+                    "[DIRECTOR] Web control WebSocket connection failed. Retrying in 5 seconds..."
+                )
+                await asyncio.sleep(5)
 
     async def listen_and_send_audio(self):
         """Captures audio and sends it directly to the Gemini API."""
@@ -160,6 +221,7 @@ class AumDirectorApp:
                 tg.create_task(self.listen_and_send_audio())
                 tg.create_task(self.play_audio())
                 tg.create_task(self.receive_and_process())
+                tg.create_task(self.listen_for_web_commands())  # Add the new task here
 
         except asyncio.CancelledError:
             pass

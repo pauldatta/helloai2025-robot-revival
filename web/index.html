@@ -87,6 +87,22 @@
                 <div class="panel-title">Scene Controls</div>
                 <div id="scene-controls" class="d-grid gap-2"></div>
             </div>
+            <div class="panel">
+                <div class="panel-title">Manual Arm Control</div>
+                <div class="input-group mb-2">
+                    <span class="input-group-text">P1</span>
+                    <input type="number" class="form-control" id="p1-input" value="2468" min="2400" max="4000">
+                </div>
+                <div class="input-group mb-2">
+                    <span class="input-group-text">P2</span>
+                    <input type="number" class="form-control" id="p2-input" value="68" min="60" max="1500">
+                </div>
+                <div class="input-group mb-3">
+                    <span class="input-group-text">P3</span>
+                    <input type="number" class="form-control" id="p3-input" value="2980" min="2000" max="4000">
+                </div>
+                <button id="move-arm-btn" class="btn btn-primary">Move Arm</button>
+            </div>
         </aside>
     </div>
 
@@ -148,18 +164,26 @@
             } else if (message.startsWith('[DIRECTOR] <--- Received narrative')) {
                 addTranscriptItem(message.split(': "')[1].split('" |')[0], 'Aum');
             }
-            if (message.includes('Updated scene to')) {
-                document.getElementById('status-scene').innerHTML = `<strong>Current Scene:</strong> ${message.split('"')[1]}`;
-                document.getElementById('status-orchestrator').innerHTML = "<strong>Orchestrator:</strong> IDLE";
+            if (message.includes('Updated scene to') || message.includes('Scene state is now')) {
+                const scene = message.split('"')[1];
+                const sceneEl = document.getElementById('status-scene');
+                sceneEl.textContent = scene.replace(/_/g, ' ');
+                if (scene === 'MANUAL_OVERRIDE') {
+                    sceneEl.classList.add('text-warning');
+                } else {
+                    sceneEl.classList.remove('text-warning');
+                }
+                document.getElementById('status-orchestrator').textContent = "IDLE";
             }
             if (message.includes('Calling Gemini API')) {
-                document.getElementById('status-orchestrator').innerHTML = "<strong>Orchestrator:</strong> THINKING";
+                document.getElementById('status-orchestrator').textContent = "THINKING";
             }
-            if (message.includes("Queuing action: move_robotic_arm")) {
-                const match = /'p1': (\d+), 'p2': (\d+)/.exec(message);
-                if (match) {
-                    const p1 = parseInt(match[1], 10);
-                    const p2 = parseInt(match[2], 10);
+            if (message.includes("Queuing action: move_robotic_arm") || message.includes("Manually moving arm to")) {
+                const p1Match = /p1=(\d+)/.exec(message) || /'p1': (\d+)/.exec(message);
+                const p2Match = /p2=(\d+)/.exec(message) || /'p2': (\d+)/.exec(message);
+                if (p1Match && p2Match) {
+                    const p1 = parseInt(p1Match[1], 10);
+                    const p2 = parseInt(p2Match[1], 10);
                     const { left, top } = mapCoordinates(p1, p2);
                     document.getElementById('arm-indicator').style.left = `${left}%`;
                     document.getElementById('arm-indicator').style.top = `${top}%`;
@@ -168,11 +192,11 @@
         }
 
         // WebSocket Connection
-        function connect() {
+        function connectLogs() {
             const socket = new WebSocket(`ws://${window.location.host}/ws/logs`);
-            socket.onopen = () => logFormattedMessage({ asctime: new Date().toISOString(), levelname: 'SYSTEM', message: 'Connection Established.'});
-            socket.onclose = () => setTimeout(connect, 2000);
-            socket.onerror = (error) => console.error("WebSocket error:", error);
+            socket.onopen = () => logFormattedMessage({ asctime: new Date().toISOString(), levelname: 'SYSTEM', message: 'Log connection established.'});
+            socket.onclose = () => setTimeout(connectLogs, 2000);
+            socket.onerror = (error) => console.error("Log WebSocket error:", error);
             socket.onmessage = (event) => {
                 try {
                     const logData = JSON.parse(event.data);
@@ -182,23 +206,49 @@
             };
         }
 
+        // --- Control WebSocket ---
+        let controlSocket;
+        function connectControl() {
+            controlSocket = new WebSocket(`ws://${window.location.host}/ws/control`);
+            controlSocket.onopen = () => console.log("Control WebSocket connected.");
+            controlSocket.onclose = () => {
+                console.log("Control WebSocket disconnected. Retrying...");
+                setTimeout(connectControl, 2000);
+            };
+            controlSocket.onerror = (error) => console.error("Control WebSocket error:", error);
+        }
+
+        function sendControlCommand(command) {
+            if (controlSocket && controlSocket.readyState === WebSocket.OPEN) {
+                controlSocket.send(JSON.stringify(command));
+            } else {
+                console.error("Control socket not open. Command not sent.");
+            }
+        }
+
+
         // Initial Setup
         const sceneControls = document.getElementById('scene-controls');
-        const controlSocket = new WebSocket(`ws://${window.location.host}/ws/control`);
-        controlSocket.onopen = () => console.log("Control WebSocket connected.");
-        controlSocket.onclose = () => console.log("Control WebSocket disconnected.");
+        
         SCENES.forEach(scene => {
             const btn = document.createElement('button');
             btn.className = 'btn btn-outline-secondary';
             btn.textContent = scene.replace(/_/g, ' ');
             btn.onclick = () => {
-                const command = { type: "trigger_scene", scene_name: scene };
-                controlSocket.send(JSON.stringify(command));
+                sendControlCommand({ type: "trigger_scene", scene_name: scene });
             };
             sceneControls.appendChild(btn);
         });
+
+        document.getElementById('move-arm-btn').onclick = () => {
+            const p1 = parseInt(document.getElementById('p1-input').value, 10);
+            const p2 = parseInt(document.getElementById('p2-input').value, 10);
+            const p3 = parseInt(document.getElementById('p3-input').value, 10);
+            sendControlCommand({ type: "move_robotic_arm", params: { p1, p2, p3 } });
+        };
         
-        connect();
+        connectLogs();
+        connectControl();
     </script>
 </body>
 </html>

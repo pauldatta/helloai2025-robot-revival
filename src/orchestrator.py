@@ -14,7 +14,7 @@ SCENE_ACTIONS = {
     "AUMS_HOME": [
         # Corresponds to S3: Story of Aum | Aum's Home and S4: Aum's Home - zoom in
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 2}},
-        {"action": "move_robotic_arm", "params": {"p1": 2468, "p2": 68, "p3": 3447}},
+        {"action": "move_robotic_arm", "params": {"p1": 2468, "p2": 68, "p3": 2980}},
         {
             "action": "play_video",
             "params": {"video_file": "part1_lost_in_the_city.mp4"},
@@ -106,10 +106,10 @@ SCENE_ACTIONS = {
 
 # --- Modular Functions for Core Logic ---
 async def _execute_scene_actions(scene_name, hardware_manager):
-    """Looks up a scene in the SCENE_ACTIONS map and executes all actions."""
+    """Looks up a scene and executes its actions sequentially."""
     actions_to_run = SCENE_ACTIONS.get(scene_name)
 
-    # Handle scene aliases (e.g., for guided mode)
+    # Handle scene aliases
     if isinstance(actions_to_run, str):
         actions_to_run = SCENE_ACTIONS.get(actions_to_run)
 
@@ -117,29 +117,25 @@ async def _execute_scene_actions(scene_name, hardware_manager):
         logging.info(f"[ORCHESTRATOR] No actions defined for scene: {scene_name}")
         return
 
-    tasks = []
+    logging.info(f"[ORCHESTRATOR] ---> Executing actions for scene '{scene_name}'...")
     for item in actions_to_run:
         action_name = item.get("action")
         params = item.get("params", {})
         function_to_call = getattr(hardware_manager, action_name, None)
 
         if callable(function_to_call):
-            logging.info(f"[ORCHESTRATOR] ---> Queuing action: {action_name}({params})")
-            tasks.append(function_to_call(**params))
+            try:
+                logging.info(
+                    f"[ORCHESTRATOR] ---> Running action: {action_name}({params})"
+                )
+                # Execute each action and wait for it to complete.
+                await function_to_call(**params)
+            except Exception as e:
+                logging.error(f"[ORCHESTRATOR] ERROR during action {action_name}: {e}")
         else:
             logging.error(
                 f"[ORCHESTRATOR] ERROR: Unknown action '{action_name}' in scene '{scene_name}'"
             )
-
-    # Run all hardware tasks concurrently with a timeout
-    if tasks:
-        try:
-            logging.info(
-                f"[ORCHESTRATOR] ---> Executing {len(tasks)} action(s) for scene '{scene_name}'..."
-            )
-            await asyncio.wait_for(asyncio.gather(*tasks), timeout=10.0)
-        except asyncio.TimeoutError:
-            logging.error("[ORCHESTRATOR] ERROR: A hardware operation timed out.")
 
 
 async def _get_model_response(client, system_prompt, prompt):
@@ -253,6 +249,23 @@ class StatefulOrchestrator:
                 "I seem to have gotten my wires crossed. Could you try that again?",
                 self.current_scene,
             )
+
+    async def execute_scene_by_name(self, scene_name: str):
+        """A direct method to execute a scene's actions, bypassing the AI."""
+        logging.info(f"[ORCHESTRATOR] ---> Manually executing scene: {scene_name}")
+        task = asyncio.create_task(_execute_scene_actions(scene_name, self.hardware))
+        self.background_tasks.add(task)
+        task.add_done_callback(self.background_tasks.discard)
+        self.current_scene = scene_name
+
+    async def execute_manual_arm_move(self, p1: int, p2: int, p3: int):
+        """A direct method to move the robotic arm, updating the scene state."""
+        logging.info(
+            f"[ORCHESTRATOR] ---> Manually moving arm to: p1={p1}, p2={p2}, p3={p3}"
+        )
+        await self.hardware.move_robotic_arm(p1=p1, p2=p2, p3=p3)
+        self.current_scene = "MANUAL_OVERRIDE"
+        logging.info(f'[ORCHESTRATOR] <--- Scene state is now "{self.current_scene}"')
 
 
 async def main():

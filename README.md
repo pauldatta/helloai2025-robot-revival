@@ -19,6 +19,10 @@ The application's logic is decoupled into a voice interface, a control plane, an
 
 The project includes a real-time web interface for monitoring and control, accessible at `http://localhost:8000` when running the app. It provides a live log stream, a parsed conversation transcript, and a system status panel, all powered by a FastAPI backend with WebSockets.
 
+The interface also includes two key control panels:
+-   **Scene Controls:** Buttons to trigger any of the pre-defined story scenes.
+-   **Manual Arm Control:** Number inputs to directly set the `p1`, `p2`, and `p3` coordinates of the robotic arm, which is essential for calibrating scene positions. When used, the system state will change to `MANUAL_OVERRIDE`.
+
 ![Mission Control Web Interface](context/aums_web_admin.png)
 
 ## Project Structure
