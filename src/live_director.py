@@ -89,14 +89,11 @@ class AumDirectorApp:
                             logging.error(
                                 f"[DIRECTOR] Error processing web command: {e}"
                             )
-            except (
-                websockets.exceptions.ConnectionClosedError,
-                ConnectionRefusedError,
-            ):
+            except (OSError, websockets.exceptions.ConnectionClosedError) as e:
                 logging.warning(
-                    "[DIRECTOR] Web control WebSocket connection failed. Retrying in 5 seconds..."
+                    f"[DIRECTOR] WebSocket connection failed: {e}. Retrying in 3 seconds..."
                 )
-                await asyncio.sleep(5)
+                await asyncio.sleep(3)
 
     async def listen_and_send_audio(self):
         """Captures audio and sends it directly to the Gemini API."""
