@@ -118,6 +118,20 @@ When running with the physical Arduino hardware, the application requires a diff
     - Connect your hardware and find the device paths (e.g., by running `ls /dev/tty.*` or `ls /dev/cu.*` on macOS).
     - Set the correct port paths for your hardware in the `.env` file (e.g., `MAIN_CONTROLLER_PORT="/dev/tty.usbmodem12345"` and `ROBOTIC_ARM_PORT="/dev/tty.usbmodemABCDE"`).
 
+    - **Production Hardware Ports:** The production Mac mini uses the following serial ports. These should be configured in your `.env` file.
+      - **Main Controller (OpenCR Board):** `/dev/cu.usbmodem1421`
+        ```
+        Device: /dev/cu.usbmodem1421
+        Description: OpenCR Virtual ComPort in FS Mode
+        Hardware ID: USB VID:PID=0483:5740 SER=FFFFFFFEFFFF LOCATION=20-2
+        ```
+      - **Robotic Arm (IOUSBHostDevice):** `/dev/cu.usbmodem1461`
+        ```
+        Device: /dev/cu.usbmodem1461
+        Description: IOUSBHostDevice
+        Hardware ID: USB VID:PID=2341:0042 SER=9563533393035150C0C1 LOCATION=20-6
+        ```
+
 2.  **Run with Foreman (Recommended):**
     The `Procfile.prod` is configured to run the necessary processes for a production environment (the web server and the director). This is the standard way to run the application for deployment or production testing.
     ```bash
