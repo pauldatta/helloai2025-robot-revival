@@ -26,18 +26,28 @@ class AumDirectorApp:
         self.pya = pyaudio.PyAudio()
         self.audio_in_queue = asyncio.Queue()
         self.session = None
+        self.is_story_in_progress = False
 
     async def process_user_command(self, command: str):
         """
-        Processes the user's command by sending it to the orchestrator and
-        returning the structured response. Now fully async.
+        Processes the user's command. If a story is in progress, it advances it.
+        Otherwise, it requests a new story from the orchestrator.
         """
         logging.info(f'[DIRECTOR] ---> Calling Orchestrator with command: "{command}"')
-        narrative, scene_name = await self.orchestrator.process_user_command(command)
+        if self.is_story_in_progress:
+            result = await self.orchestrator.advance_story()
+        else:
+            result = await self.orchestrator.request_new_story(command)
+
+        narrative = result.get("narrative")
+        is_finished = result.get("is_story_finished")
+        self.is_story_in_progress = not is_finished
+
         logging.info(
-            f'[DIRECTOR] <--- Received narrative: "{narrative}" | New Scene: {scene_name}'
+            f'[DIRECTOR] <--- Received narrative: "{narrative}" | Story finished: {is_finished}'
         )
-        return {"narrative": narrative, "scene_name": scene_name}
+        # The Director AI needs to know the narrative and whether to prompt the user to continue.
+        return {"narrative": narrative, "is_story_finished": is_finished}
 
     async def listen_for_web_commands(self):
         """Connects to the web server's control WebSocket and listens for commands."""
@@ -62,9 +72,10 @@ class AumDirectorApp:
                             if command_type == "trigger_scene":
                                 scene_name = data.get("scene_name")
                                 logging.info(
-                                    f"[DIRECTOR] Received web command to trigger scene: {scene_name}"
+                                    f"[DIRECTOR] Received web command to trigger location: {scene_name}"
                                 )
-                                await self.orchestrator.execute_scene_by_name(
+                                # In the new design, scene_name from the UI maps to a location
+                                await self.orchestrator.execute_location_by_name(
                                     scene_name
                                 )
 
@@ -182,16 +193,29 @@ class AumDirectorApp:
         tools = [
             {
                 "name": "process_user_command",
-                "description": "Processes the user's transcribed speech. This is the primary way the user interacts with the story.",
+                "description": "Processes the user's speech to either start a new story or advance the current one.",
                 "parameters": {
                     "type": "OBJECT",
                     "properties": {
                         "command": {
                             "type": "STRING",
-                            "description": "The verbatim transcribed text of the user's speech.",
+                            "description": "The verbatim transcribed text of the user's speech (e.g., 'Tell me a story about a brave mouse', or 'Yes, please continue').",
                         }
                     },
                     "required": ["command"],
+                },
+                "response": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "narrative": {
+                            "type": "STRING",
+                            "description": "The part of the story for the assistant to speak.",
+                        },
+                        "is_story_finished": {
+                            "type": "BOOLEAN",
+                            "description": "True if this is the last part of the story, False otherwise.",
+                        },
+                    },
                 },
             }
         ]

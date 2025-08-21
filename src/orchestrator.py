@@ -6,118 +6,55 @@ from google import genai
 from google.genai import types
 from .hardware_controller import HardwareManager
 
-# --- Scene to Action Mapping ---
-# This dictionary maps a scene name to a list of hardware actions.
-# This makes it easy to add new actions (like video) without changing the core logic.
-SCENE_ACTIONS = {
-    # --- Main Story Scenes ---
-    "AUMS_HOME": [
-        # Corresponds to S3: Story of Aum | Aum's Home and S4: Aum's Home - zoom in
+# --- Location to Action Mapping ---
+# This dictionary maps a generic location name to a list of hardware actions.
+LOCATION_ACTIONS = {
+    "HOME": [
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 2}},
         {"action": "move_robotic_arm", "params": {"p1": 2468, "p2": 68, "p3": 2980}},
-        {
-            "action": "play_video",
-            "params": {"video_file": "part1_lost_in_the_city.mp4"},
-        },
     ],
-    "AUM_CRYING": [
-        # Corresponds to S5: Aum Crying
+    "REFLECTING_POOL": [
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 4}},
         {"action": "move_robotic_arm", "params": {"p1": 2457, "p2": 79, "p3": 3447}},
     ],
-    "BUS_SOCCER": [
-        # Corresponds to S6a: Bus and S6b: Bus - Soccer
-        {"action": "trigger_diorama_scene", "params": {"scene_command_id": 5}},
-        {
-            "action": "move_robotic_arm",
-            "params": {"p1": 2457, "p2": 79, "p3": 3447},
-        },  # Same as AUM_CRYING
-    ],
     "MARKET": [
-        # Corresponds to S9: Market
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 3}},
-        {
-            "action": "move_robotic_arm",
-            "params": {"p1": 2457, "p2": 68, "p3": 3436},
-        },  # Same as ROAD_TO_HUA_HIN
-        {"action": "play_video", "params": {"video_file": "part2_glimmer_of_hope.mp4"}},
-    ],
-    "AUM_GROWS_UP": [
-        # Corresponds to S10: Aum Grew Up
-        {"action": "trigger_diorama_scene", "params": {"scene_command_id": 7}},
-        {
-            "action": "move_robotic_arm",
-            "params": {"p1": 2457, "p2": 68, "p3": 3436},
-        },  # Same as ROAD_TO_HUA_HIN
-    ],
-    "ROAD_TO_HUA_HIN": [
-        # Corresponds to S11a: Aum to Hua Hin and S11b: Aum reach Hua Hin
-        {"action": "trigger_diorama_scene", "params": {"scene_command_id": 6}},
         {"action": "move_robotic_arm", "params": {"p1": 2457, "p2": 68, "p3": 3436}},
     ],
     "INTERNET_CAFE": [
-        # Corresponds to S12a: Cafe and S12b: Cafe
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 8}},
         {"action": "move_robotic_arm", "params": {"p1": 2446, "p2": 68, "p3": 3436}},
-        {"action": "play_video", "params": {"video_file": "part3_the_search.mp4"}},
     ],
-    "GOOGLE_MAP": [
-        # Corresponds to S13: Google Map
+    "SCENIC_OVERLOOK": [
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 10}},
         {"action": "move_robotic_arm", "params": {"p1": 4000, "p2": 1500, "p3": 3800}},
-        {"action": "play_video", "params": {"video_file": "part4_the_path_home.mp4"}},
     ],
-    "ROAD_TO_BANGKOK": [
-        # Corresponds to S14a: Aum back to BK and S14b: Aum back to BK
+    "CITY_ENTRANCE": [
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 11}},
         {"action": "move_robotic_arm", "params": {"p1": 3800, "p2": 1300, "p3": 3700}},
-        {"action": "play_video", "params": {"video_file": "part5_the_reunion.mp4"}},
     ],
-    # --- System & Utility Scenes ---
     "IDLE": [
-        # Corresponds to S0: Rest
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 0}},
         {
             "action": "move_robotic_arm",
             "params": {"p1": 2048, "p2": 0, "p3": 3960},
         },  # Default position
     ],
-    "FINDING_BOY": [
-        # Corresponds to S2: Finding Boy (likely an intro/attract scene)
-        {"action": "trigger_diorama_scene", "params": {"scene_command_id": 1}},
-        {
-            "action": "move_robotic_arm",
-            "params": {"p1": 2048, "p2": 0, "p3": 3960},
-        },  # Default position
-    ],
-    # --- Guided Mode ---
-    # References the main story scenes
-    "GUIDED_MODE_AUMS_HOME": "AUMS_HOME",
-    "GUIDED_MODE_BUS_SOCCER": "BUS_SOCCER",
-    "GUIDED_MODE_AUM_CRYING": "AUM_CRYING",
-    "GUIDED_MODE_MARKET": "MARKET",
-    "GUIDED_MODE_AUM_GROWS_UP": "AUM_GROWS_UP",
-    "GUIDED_MODE_ROAD_TO_HUA_HIN": "ROAD_TO_HUA_HIN",
-    "GUIDED_MODE_INTERNET_CAFE": "INTERNET_CAFE",
-    "GUIDED_MODE_GOOGLE_MAP": "GOOGLE_MAP",
-    "GUIDED_MODE_ROAD_TO_BANGKOK": "ROAD_TO_BANGKOK",
 }
 
 
 # --- Modular Functions for Core Logic ---
-async def _execute_scene_actions(scene_name, hardware_manager):
-    """Looks up a scene and executes its actions sequentially."""
-    actions_to_run = SCENE_ACTIONS.get(scene_name)
-
-    # Handle scene aliases
-    if isinstance(actions_to_run, str):
-        actions_to_run = SCENE_ACTIONS.get(actions_to_run)
+async def _execute_location_actions(location_name, hardware_manager):
+    """Looks up a location and executes its actions sequentially."""
+    actions_to_run = LOCATION_ACTIONS.get(location_name)
 
     if not actions_to_run:
-        logging.info(f"[ORCHESTRATOR] No actions defined for scene: {scene_name}")
+        logging.info(f"[ORCHESTRATOR] No actions defined for location: {location_name}")
         return
 
-    logging.info(f"[ORCHESTRATOR] ---> Executing actions for scene '{scene_name}'...")
+    logging.info(
+        f"[ORCHESTRATOR] ---> Executing actions for location '{location_name}'..."
+    )
     for item in actions_to_run:
         action_name = item.get("action")
         params = item.get("params", {})
@@ -134,7 +71,7 @@ async def _execute_scene_actions(scene_name, hardware_manager):
                 logging.error(f"[ORCHESTRATOR] ERROR during action {action_name}: {e}")
         else:
             logging.error(
-                f"[ORCHESTRATOR] ERROR: Unknown action '{action_name}' in scene '{scene_name}'"
+                f"[ORCHESTRATOR] ERROR: Unknown action '{action_name}' in location '{location_name}'"
             )
 
 
@@ -179,7 +116,7 @@ def _parse_json_from_text(text: str):
 
 # --- Main Orchestrator Class ---
 class StatefulOrchestrator:
-    """Manages story state via a single, intelligent API call."""
+    """Manages the story generation, state, and hardware orchestration."""
 
     def __init__(self):
         api_key = os.getenv("GEMINI_API_KEY")
@@ -187,94 +124,149 @@ class StatefulOrchestrator:
             raise ValueError("GEMINI_API_KEY environment variable not set.")
         self.client = genai.Client(api_key=api_key)
         self.hardware = HardwareManager()
-        with open("prompts/AUM_ORCHESTRATOR.md", "r") as f:
+        with open("prompts/AARON_STORYTELLER.md", "r") as f:
             self.system_prompt = f.read()
-        self.current_scene = "AWAITING_MODE_SELECTION"
+        self.current_story_plan = []
+        self.current_story_step = -1
         self.background_tasks = set()
-        logging.info(f"[ORCHESTRATOR] Initialized. Start scene: {self.current_scene}")
+        logging.info("[ORCHESTRATOR] Initialized in storytelling mode.")
 
-    async def process_user_command(self, user_text: str):
+    async def request_new_story(self, user_prompt: str):
         """
-        Processes user text, determines the next scene, returns the narrative immediately,
-        and executes hardware actions in the background.
+        Calls the Gemini API to generate a new story plan based on the user's prompt.
+        Returns the first part of the story.
         """
         logging.info(
-            f'[ORCHESTRATOR] ---> Received command: "{user_text}" | Current Scene: {self.current_scene}'
+            f'[ORCHESTRATOR] ---> Requesting new story with prompt: "{user_prompt}"'
         )
-        prompt = f'Current Scene: {self.current_scene}\nUser Speech: "{user_text}"'
-
         try:
-            # 1. Get the model's response (narrative + next_scene)
+            # 1. Get the model's response (the story plan)
             response = await _get_model_response(
-                self.client, self.system_prompt, prompt
+                self.client, self.system_prompt, user_prompt
             )
-
-            # 2. Extract and parse the JSON narrative
             raw_text = response.text
             response_data = _parse_json_from_text(raw_text)
 
-            if not response_data:
+            if not response_data or "story_plan" not in response_data:
                 logging.error(
-                    "[ORCHESTRATOR] ERROR: Failed to get a valid JSON narrative. Using fallback."
+                    "[ORCHESTRATOR] ERROR: Failed to get a valid story plan. Using fallback."
                 )
-                return "I'm not sure what to say next.", self.current_scene
+                return {
+                    "narrative": "I'm sorry, I couldn't think of a story right now. Please ask me again!",
+                    "is_story_finished": True,
+                }
 
-            # 3. Update state and get narrative
-            narrative = response_data.get("narrative", "I'm speechless.")
-            next_scene = response_data.get("next_scene", self.current_scene)
-
-            # 4. If the scene has changed, start the hardware actions in the background.
-            if next_scene != self.current_scene:
-                task = asyncio.create_task(
-                    _execute_scene_actions(next_scene, self.hardware)
-                )
-                self.background_tasks.add(task)
-                task.add_done_callback(self.background_tasks.discard)
-
-            self.current_scene = next_scene
+            # 2. Store the new story plan and start the first step
+            self.current_story_plan = response_data["story_plan"]
+            self.current_story_step = 0
             logging.info(
-                f'[ORCHESTRATOR] <--- Updated scene to "{self.current_scene}". Returning narrative immediately.'
+                f"[ORCHESTRATOR] <--- Received new story with {len(self.current_story_plan)} parts."
             )
-            return narrative, self.current_scene
+
+            # 3. Execute the hardware actions for the first part in the background
+            first_part = self.current_story_plan[0]
+            location = first_part.get("location")
+            task = asyncio.create_task(
+                _execute_location_actions(location, self.hardware)
+            )
+            self.background_tasks.add(task)
+            task.add_done_callback(self.background_tasks.discard)
+
+            # 4. Return the first narrative
+            return {
+                "narrative": first_part.get("narrative"),
+                "is_story_finished": len(self.current_story_plan) <= 1,
+            }
 
         except asyncio.TimeoutError:
             logging.error("[ORCHESTRATOR] CRITICAL_ERROR: Gemini API call timed out.")
-            return (
-                "I took too long to think. Could you please try that again?",
-                self.current_scene,
-            )
+            return {
+                "narrative": "I took too long to think. Could you please try that again?",
+                "is_story_finished": True,
+            }
         except Exception as e:
             logging.error(f"[ORCHESTRATOR] CRITICAL_ERROR: {e}")
-            return (
-                "I seem to have gotten my wires crossed. Could you try that again?",
-                self.current_scene,
-            )
+            return {
+                "narrative": "I seem to have gotten my wires crossed. Could you try that again?",
+                "is_story_finished": True,
+            }
 
-    async def execute_scene_by_name(self, scene_name: str):
-        """A direct method to execute a scene's actions, bypassing the AI."""
-        logging.info(f"[ORCHESTRATOR] ---> Manually executing scene: {scene_name}")
-        task = asyncio.create_task(_execute_scene_actions(scene_name, self.hardware))
+    async def advance_story(self):
+        """
+        Advances the story to the next step and returns the corresponding narrative.
+        """
+        if not self.current_story_plan or self.current_story_step < 0:
+            return {
+                "narrative": "There is no story in progress. You can ask me to tell you one!",
+                "is_story_finished": True,
+            }
+
+        self.current_story_step += 1
+        if self.current_story_step >= len(self.current_story_plan):
+            logging.info("[ORCHESTRATOR] Story finished.")
+            self.current_story_plan = []
+            self.current_story_step = -1
+            return {
+                "narrative": "And that's the end of the story! I hope you enjoyed it.",
+                "is_story_finished": True,
+            }
+
+        logging.info(
+            f"[ORCHESTRATOR] Advancing story to step {self.current_story_step}"
+        )
+        next_part = self.current_story_plan[self.current_story_step]
+        location = next_part.get("location")
+
+        # Execute hardware actions in the background
+        task = asyncio.create_task(_execute_location_actions(location, self.hardware))
         self.background_tasks.add(task)
         task.add_done_callback(self.background_tasks.discard)
-        self.current_scene = scene_name
+
+        is_finished = self.current_story_step >= len(self.current_story_plan) - 1
+        return {
+            "narrative": next_part.get("narrative"),
+            "is_story_finished": is_finished,
+        }
+
+    async def execute_location_by_name(self, location_name: str):
+        """A direct method to execute a location's actions, bypassing the AI."""
+        logging.info(
+            f"[ORCHESTRATOR] ---> Manually executing location: {location_name}"
+        )
+        task = asyncio.create_task(
+            _execute_location_actions(location_name, self.hardware)
+        )
+        self.background_tasks.add(task)
+        task.add_done_callback(self.background_tasks.discard)
+        # In the new design, manual triggers don't affect the story state.
 
     async def execute_manual_arm_move(self, p1: int, p2: int, p3: int):
-        """A direct method to move the robotic arm, updating the scene state."""
+        """A direct method to move the robotic arm."""
         logging.info(
             f"[ORCHESTRATOR] ---> Manually moving arm to: p1={p1}, p2={p2}, p3={p3}"
         )
         await self.hardware.move_robotic_arm(p1=p1, p2=p2, p3=p3)
-        self.current_scene = "MANUAL_OVERRIDE"
-        logging.info(f'[ORCHESTRATOR] <--- Scene state is now "{self.current_scene}"')
+        logging.info("[ORCHESTRATOR] <--- Manual arm move complete.")
 
 
 async def main():
     """A simple async main function for smoke testing."""
+    logging.basicConfig(level=logging.INFO)
     orchestrator = StatefulOrchestrator()
     await orchestrator.hardware.connect_all()
-    logging.info("\n--- Orchestrator Smoke Test ---")
-    narrative, _ = await orchestrator.process_user_command("Hello")
-    logging.info(f"Narrative Output: {narrative}")
+    logging.info("\n--- Orchestrator Storytelling Smoke Test ---")
+
+    # Test starting a new story
+    result = await orchestrator.request_new_story(
+        "Tell me a story about a lost kitten."
+    )
+    logging.info(f"Narrative 1: {result['narrative']}")
+
+    # Test advancing the story
+    if not result["is_story_finished"]:
+        result = await orchestrator.advance_story()
+        logging.info(f"Narrative 2: {result['narrative']}")
+
     await orchestrator.hardware.close_all_ports()
 
 
