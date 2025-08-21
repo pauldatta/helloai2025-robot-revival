@@ -76,13 +76,19 @@ async def _execute_scene_actions(scene_name, hardware_manager):
 async def _get_model_response(client, system_prompt, history):
     logging.info("[ORCHESTRATOR] ---> Calling Gemini API.")
     prompt = json.dumps({"conversation_history": history})
-    config = types.GenerateContentConfig(response_mime_type="application/json")
+
+    # Pass the system prompt inside the generation configuration
+    config = types.GenerateContentConfig(
+        response_mime_type="application/json", system_instruction=system_prompt
+    )
+
+    contents = [types.Part(text=prompt)]
+
     api_call = asyncio.to_thread(
         client.models.generate_content,
         model="gemini-2.5-flash",
-        contents=[types.Content(role="user", parts=[types.Part(text=prompt)])],
+        contents=contents,
         config=config,
-        system_instruction=system_prompt,
     )
     return await asyncio.wait_for(api_call, timeout=8.0)
 
