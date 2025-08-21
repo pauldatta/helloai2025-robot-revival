@@ -107,10 +107,11 @@ class AumDirectorApp:
 
             turn = self.session.receive()
             async for response in turn:
-                if audio_data := response.server_content.model_turn.parts[
-                    0
-                ].inline_data:
-                    self.audio_in_queue.put_nowait(audio_data.data)
+                if response.server_content and response.server_content.model_turn:
+                    for part in response.server_content.model_turn.parts:
+                        if audio_data := getattr(part, "inline_data", None):
+                            if audio_data.mime_type.startswith("audio/pcm"):
+                                self.audio_in_queue.put_nowait(audio_data.data)
 
                 if response.tool_call:
                     for call in response.tool_call.function_calls:
