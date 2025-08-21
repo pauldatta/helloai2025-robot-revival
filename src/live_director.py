@@ -56,7 +56,7 @@ class AumDirectorApp:
                                 )
                             elif data.get("type") == "move_robotic_arm":
                                 await self.orchestrator.execute_manual_arm_move(
-                                    **data.get("params", {{}})
+                                    **data.get("params", {})
                                 )
                         except (json.JSONDecodeError, TypeError) as e:
                             logging.error(
@@ -161,8 +161,8 @@ class AumDirectorApp:
                     config={
                         "system_instruction": system_prompt,
                         "response_modalities": ["AUDIO"],
-                        "input_audio_transcription": {{}},
-                        "realtime_input_config": {"automatic_activity_detection": {{}}},
+                        "input_audio_transcription": {},
+                        "realtime_input_config": {"automatic_activity_detection": {}},
                         "tools": tools,
                     },
                 ) as session,
