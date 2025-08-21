@@ -26,18 +26,31 @@ class AumDirectorApp:
         self.pya = pyaudio.PyAudio()
         self.audio_in_queue = asyncio.Queue()
         self.session = None
+        self.web_socket = None
 
-    async def process_user_command(self, command: str):
+    async def send_qr_command_to_web(self):
+        """Sends the display_qr command to the web server via WebSocket."""
+        if self.web_socket and self.web_socket.open:
+            logging.info("[DIRECTOR] ---> Sending 'display_qr' command to web server.")
+            try:
+                await self.web_socket.send(json.dumps({"type": "display_qr"}))
+            except websockets.exceptions.ConnectionClosed:
+                logging.error(
+                    "[DIRECTOR] WebSocket connection is closed. Cannot send QR command."
+                )
+                self.web_socket = None
+        else:
+            logging.warning("[DIRECTOR] No active web socket to send QR command.")
+
+    async def process_user_response(self, command: str):
         """
-        Processes the user's command by sending it to the orchestrator and
-        returning the structured response. Now fully async.
+        Processes the user's response by sending it to the orchestrator and
+        returning the single-turn conversational result.
         """
         logging.info(f'[DIRECTOR] ---> Calling Orchestrator with command: "{command}"')
-        narrative, scene_name = await self.orchestrator.process_user_command(command)
-        logging.info(
-            f'[DIRECTOR] <--- Received narrative: "{narrative}" | New Scene: {scene_name}'
-        )
-        return {"narrative": narrative, "scene_name": scene_name}
+        result = await self.orchestrator.process_user_response(command, self)
+        logging.info(f'[DIRECTOR] <--- Received narrative: "{result.get("narrative")}"')
+        return result
 
     async def listen_for_web_commands(self):
         """Connects to the web server's control WebSocket and listens for commands."""
@@ -45,6 +58,7 @@ class AumDirectorApp:
         while True:
             try:
                 async with websockets.connect(uri) as websocket:
+                    self.web_socket = websocket  # Store the active websocket
                     # Identify this client as the director upon connecting
                     await websocket.send(
                         json.dumps({"type": "identify", "client": "director"})
@@ -64,6 +78,7 @@ class AumDirectorApp:
                                 logging.info(
                                     f"[DIRECTOR] Received web command to trigger scene: {scene_name}"
                                 )
+                                # In the new design, scene_name from the UI maps to a location
                                 await self.orchestrator.execute_scene_by_name(
                                     scene_name
                                 )
@@ -93,6 +108,7 @@ class AumDirectorApp:
                 logging.warning(
                     f"[DIRECTOR] WebSocket connection failed: {e}. Retrying in 3 seconds..."
                 )
+                self.web_socket = None  # Clear the socket on failure
                 await asyncio.sleep(3)
 
     async def listen_and_send_audio(self):
@@ -154,7 +170,7 @@ class AumDirectorApp:
                             logging.info(
                                 f'[DIRECTOR] ---> User speech detected: "{command}"'
                             )
-                            result = await self.process_user_command(command)
+                            result = await self.process_user_response(command)
                             await self.session.send_tool_response(
                                 function_responses=[
                                     types.FunctionResponse(
@@ -176,22 +192,35 @@ class AumDirectorApp:
             raise ValueError("GEMINI_API_KEY environment variable not set.")
         client = genai.Client(api_key=api_key)
 
-        with open("prompts/AUM_DIRECTOR.md", "r") as f:
+        with open("prompts/BOB_DIRECTOR.md", "r") as f:
             system_prompt = f.read()
 
         tools = [
             {
                 "name": "process_user_command",
-                "description": "Processes the user's transcribed speech. This is the primary way the user interacts with the story.",
+                "description": "Processes the user's speech to either start a new story or advance the current one.",
                 "parameters": {
                     "type": "OBJECT",
                     "properties": {
                         "command": {
                             "type": "STRING",
-                            "description": "The verbatim transcribed text of the user's speech.",
+                            "description": "The verbatim transcribed text of the user's speech (e.g., 'Tell me a story about a brave mouse', or 'Yes, please continue').",
                         }
                     },
                     "required": ["command"],
+                },
+                "response": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "narrative": {
+                            "type": "STRING",
+                            "description": "The part of the story for the assistant to speak.",
+                        },
+                        "is_story_finished": {
+                            "type": "BOOLEAN",
+                            "description": "True if this is the last part of the story, False otherwise.",
+                        },
+                    },
                 },
             }
         ]
@@ -203,16 +232,19 @@ class AumDirectorApp:
         try:
             await self.orchestrator.hardware.connect_all()
 
-            async with client.aio.live.connect(
-                model="models/gemini-2.5-flash-preview-native-audio-dialog",
-                config={
-                    "system_instruction": system_prompt,
-                    "response_modalities": ["AUDIO"],
-                    "input_audio_transcription": {},
-                    "realtime_input_config": {"automatic_activity_detection": {}},
-                    "tools": [{"function_declarations": tools}],
-                },
-            ) as session, asyncio.TaskGroup() as tg:
+            async with (
+                client.aio.live.connect(
+                    model="models/gemini-2.5-flash-preview-native-audio-dialog",
+                    config={
+                        "system_instruction": system_prompt,
+                        "response_modalities": ["AUDIO"],
+                        "input_audio_transcription": {},
+                        "realtime_input_config": {"automatic_activity_detection": {}},
+                        "tools": [{"function_declarations": tools}],
+                    },
+                ) as session,
+                asyncio.TaskGroup() as tg,
+            ):
                 self.session = session
 
                 tg.create_task(self.listen_and_send_audio())
