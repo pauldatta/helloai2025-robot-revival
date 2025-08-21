@@ -134,11 +134,20 @@ class StatefulOrchestrator:
         """
         Processes user input, manages conversation state, and triggers all actions.
         """
+        # 1. Handle the special command to start the conversation
+        if user_prompt == "START_CONVERSATION":
+            self._reset_conversation()
+            logging.info("[ORCHESTRATOR] Starting new conversation.")
+            return {
+                "narrative": "Hello! I'm Bob. I live here in this town, but I'm so curious about your world. Can you tell me about a place that makes you happy?",
+                "is_story_finished": False,
+            }
+
         logging.info(
             f'[ORCHESTRATOR] Turn {self.turn_number} | User said: "{user_prompt}"'
         )
 
-        # 1. Check for stop commands
+        # 2. Check for stop commands
         if user_prompt.lower().strip() in self.stop_commands:
             logging.info("[ORCHESTRATOR] Stop command detected. Ending conversation.")
             await director.send_qr_command_to_web()
@@ -148,11 +157,11 @@ class StatefulOrchestrator:
                 "is_story_finished": True,
             }
 
-        # 2. Append to history and increment turn
+        # 3. Append to history and increment turn
         self.conversation_history.append(user_prompt)
         self.turn_number += 1
 
-        # 3. Call the AI to get the next step
+        # 4. Call the AI to get the next step
         try:
             response = await _get_model_response(
                 self.client, self.system_prompt, self.conversation_history
@@ -166,12 +175,12 @@ class StatefulOrchestrator:
             question = ai_response.get("next_question", "What do you think of that?")
             is_finished = ai_response.get("is_finished", False)
 
-            # 4. Trigger hardware actions
+            # 5. Trigger hardware actions
             task = asyncio.create_task(_execute_scene_actions(scene, self.hardware))
             self.background_tasks.add(task)
             task.add_done_callback(self.background_tasks.discard)
 
-            # 5. Check for end of conversation
+            # 6. Check for end of conversation
             if is_finished or self.turn_number >= 5:
                 logging.info(
                     "[ORCHESTRATOR] Conversation finished. Triggering QR code."
