@@ -6,13 +6,12 @@ The system uses a voice-activated AI architecture powered by the Gemini API. A *
 
 ## System Architecture
 
-The application's logic is decoupled into a voice interface, a control plane, and a hardware action map.
+The application is built on a stateful, multi-turn conversational architecture designed to create a natural, curious interaction with Bob.
 
-1.  **Live Director (`live_director.py`):** Captures the user's speech and acts as the text-to-speech engine for Bob's voice. It manages the real-time, turn-by-turn conversation.
-2.  **Orchestrator (`orchestrator.py`):** The "brain" of the operation. It takes the user's response and uses one of two branches:
-    *   **Activity Branch:** If the user's response contains a keyword related to a diorama scene (e.g., "market," "train"), it triggers that scene directly.
-    *   **Generative Branch:** If no keyword is found, it calls the Gemini API with a creative prompt to link the user's concept (e.g., "hiking") to one of the available diorama scenes and generate a unique, "Pixar-style" narrative.
-3.  **Scene-to-Action Mapping (`orchestrator.py`):** A simple Python dictionary (`SCENE_ACTIONS`) maps scene names to a list of hardware commands. This decouples the AI from the hardware, making it incredibly easy to add new scenes or actions.
+1.  **Live Director (`live_director.py`):** The voice interface. It captures the user's speech, relays it to the Orchestrator, and speaks the next question that the AI generates. It is responsible for the turn-by-turn flow of the conversation.
+2.  **Orchestrator (`orchestrator.py`):** The "brain" of the operation. It maintains the `conversation_history` and `turn_number`. With each user response, it calls the Gemini API, providing the full conversation history as context.
+3.  **Conversation Engine (`prompts/BOB_STORYTELLER.md`):** This is the core creative AI. It receives the conversation history and generates the next logical question for Bob to ask, chooses a relevant diorama scene to trigger, and determines when the conversation has reached a natural conclusion (after 3-5 turns).
+4.  **Scene-to-Action Mapping (`orchestrator.py`):** A simple Python dictionary (`SCENE_ACTIONS`) maps scene names to a list of hardware commands, decoupling the AI's creative decisions from the physical hardware execution.
 
 ![System Architecture Diagram](context/new_architecture_diagram.svg)
 
