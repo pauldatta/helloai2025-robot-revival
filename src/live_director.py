@@ -175,6 +175,11 @@ class AumDirectorApp:
                 asyncio.TaskGroup() as tg,
             ):
                 self.session = session
+
+                # Send an initial empty message to kick off the conversation
+                logging.info("[DIRECTOR] Kicking off conversation with the AI.")
+                await self.session.send_client_content(turns=[], turn_complete=True)
+
                 tg.create_task(self.listen_and_send_audio())
                 tg.create_task(self.play_audio())
                 tg.create_task(self.receive_and_process())
