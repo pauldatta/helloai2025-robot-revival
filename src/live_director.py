@@ -165,7 +165,6 @@ class AumDirectorApp:
                 client.aio.live.connect(
                     model="models/gemini-2.5-flash-preview-native-audio-dialog",
                     config={
-                        "system_instruction": system_prompt,
                         "response_modalities": ["AUDIO"],
                         "input_audio_transcription": {},
                         "realtime_input_config": {"automatic_activity_detection": {}},
@@ -176,7 +175,14 @@ class AumDirectorApp:
             ):
                 self.session = session
 
-                # Send an initial, empty user turn to kick off the conversation
+                # Send the system prompt as the first turn to initialize the AI
+                logging.info("[DIRECTOR] Sending system prompt to initialize the AI.")
+                await self.session.send_client_content(
+                    turns=[{"role": "user", "parts": [{"text": system_prompt}]}],
+                    turn_complete=False,  # Keep the turn open for the user's first response
+                )
+
+                # Kick off the conversation
                 logging.info("[DIRECTOR] Kicking off conversation with the AI.")
                 await self.session.send_client_content(
                     turns={"role": "user", "parts": []}, turn_complete=True
