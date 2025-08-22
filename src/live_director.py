@@ -176,9 +176,11 @@ class AumDirectorApp:
             ):
                 self.session = session
 
-                # Send an initial empty message to kick off the conversation
+                # Send an initial, empty user turn to kick off the conversation
                 logging.info("[DIRECTOR] Kicking off conversation with the AI.")
-                await self.session.send_client_content(turns=[], turn_complete=True)
+                await self.session.send_client_content(
+                    turns={"role": "user", "parts": []}, turn_complete=True
+                )
 
                 tg.create_task(self.listen_and_send_audio())
                 tg.create_task(self.play_audio())
