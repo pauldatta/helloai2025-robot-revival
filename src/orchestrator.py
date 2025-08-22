@@ -11,37 +11,37 @@ SCENE_ACTIONS = {
     "HOME": [
         {"action": "play_video", "params": {"video_file": "05Talking.mp4"}},
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 2}},
-        {"action": "move_robotic_arm", "params": {"p1": 2900, "p2": 2600, "p3": 2120}},
+        {"action": "move_robotic_arm", "params": {"p1": 2900, "p2": 2600, "p3": 130}},
     ],
     "REFLECTION_POOL": [
         {"action": "play_video", "params": {"video_file": "06Sad.mp4"}},
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 4}},
-        {"action": "move_robotic_arm", "params": {"p1": 2500, "p2": 2600, "p3": 2500}},
+        {"action": "move_robotic_arm", "params": {"p1": 2500, "p2": 2600, "p3": 550}},
     ],
     "SPORTS_GROUND": [
         {"action": "play_video", "params": {"video_file": "08Excited.mp4"}},
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 5}},
-        {"action": "move_robotic_arm", "params": {"p1": 1950, "p2": 2900, "p3": 2800}},
+        {"action": "move_robotic_arm", "params": {"p1": 1950, "p2": 2900, "p3": 4000}},
     ],
     "MARKET": [
         {"action": "play_video", "params": {"video_file": "02Thoughtful.mp4"}},
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 3}},
-        {"action": "move_robotic_arm", "params": {"p1": 3413, "p2": 2700, "p3": 1500}},
+        {"action": "move_robotic_arm", "params": {"p1": 3413, "p2": 2700, "p3": 3605}},
     ],
     "STALL": [
         {"action": "play_video", "params": {"video_file": "03Empathy_talk.mp4"}},
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 6}},
-        {"action": "move_robotic_arm", "params": {"p1": 1700, "p2": 2800, "p3": 3180}},
+        {"action": "move_robotic_arm", "params": {"p1": 1700, "p2": 2800, "p3": 1075}},
     ],
     "TELEPHONE": [
         {"action": "play_video", "params": {"video_file": "05Talking.mp4"}},
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 8}},
-        {"action": "move_robotic_arm", "params": {"p1": 600, "p2": 600, "p3": 2360}},
+        {"action": "move_robotic_arm", "params": {"p1": 600, "p2": 600, "p3": 305}},
     ],
     "INTERNET_CAFE": [
         {"action": "play_video", "params": {"video_file": "05Talking.mp4"}},
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 9}},
-        {"action": "move_robotic_arm", "params": {"p1": 1367, "p2": 0, "p3": 2150}},
+        {"action": "move_robotic_arm", "params": {"p1": 1367, "p2": 0, "p3": 145}},
     ],
     "SCENIC_OVERLOOK": [
         {"action": "play_video", "params": {"video_file": "05Talking.mp4"}},
@@ -56,7 +56,7 @@ SCENE_ACTIONS = {
     "IDLE": [
         {"action": "play_video", "params": {"video_file": "02Thoughtful.mp4"}},
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 0}},
-        {"action": "move_robotic_arm", "params": {"p1": 2390, "p2": 3751, "p3": 1400}},
+        {"action": "move_robotic_arm", "params": {"p1": 2390, "p2": 3751, "p3": 3505}},
     ],
 }
 
@@ -187,7 +187,7 @@ class StatefulOrchestrator:
             task.add_done_callback(self.background_tasks.discard)
 
             # 6. Check for end of conversation
-            if is_finished or self.turn_number >= 10:
+            if is_finished or self.turn_number >= 5:
                 logging.info(
                     "[ORCHESTRATOR] Conversation finished. Triggering QR code."
                 )
