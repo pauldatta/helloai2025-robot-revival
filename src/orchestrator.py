@@ -187,11 +187,11 @@ class StatefulOrchestrator:
             task.add_done_callback(self.background_tasks.discard)
 
             # 6. Check for end of conversation
-            if is_finished or self.turn_number >= 5:
+            if is_finished or self.turn_number >= 10:
                 logging.info(
                     "[ORCHESTRATOR] Conversation finished. Triggering QR code."
                 )
-                await director.send_qr_command_to_web()
+                # await director.send_qr_command_to_web()
                 self._reset_conversation()
                 return {"narrative": question, "is_story_finished": True}
             else:
