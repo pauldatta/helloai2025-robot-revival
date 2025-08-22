@@ -169,7 +169,7 @@ class AumDirectorApp:
                     )
                 ),
             ),
-            input_audio_transcription={},
+            input_audio_transcription={"denoise": True},
             output_audio_transcription={},
             realtime_input_config=types.RealtimeInputConfig(
                 automatic_activity_detection=types.AutomaticActivityDetection(
@@ -180,7 +180,6 @@ class AumDirectorApp:
                 ),
                 turn_coverage=types.TurnCoverage.TURN_INCLUDES_ALL_INPUT,
             ),
-            input_audio=types.InputAudio(denoise=True),
             tools=tools,
         )
 
