@@ -132,6 +132,24 @@ async def websocket_control_endpoint(websocket: WebSocket):
                             ui_control_sockets.remove(ui_socket)
                     continue  # Don't forward this message back to the director
 
+                if message.get("type") == "reset_conversation":
+                    logging.info(
+                        "[WEB_SERVER] Received 'reset_conversation' command from UI. Forwarding to director."
+                    )
+                    if director_socket:
+                        try:
+                            await director_socket.send_text(data)
+                        except ConnectionClosed:
+                            logging.error(
+                                "[WEB_SERVER] Director is not connected. Command not sent."
+                            )
+                            director_socket = None
+                    else:
+                        logging.warning(
+                            "[WEB_SERVER] No director connected to forward command to."
+                        )
+                    continue
+
             except json.JSONDecodeError:
                 # Not a json message, treat as legacy or ignore
                 pass

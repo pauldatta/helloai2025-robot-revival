@@ -58,6 +58,11 @@ class AumDirectorApp:
                                 await self.orchestrator.execute_manual_arm_move(
                                     **data.get("params", {})
                                 )
+                            elif data.get("type") == "reset_conversation":
+                                logging.info(
+                                    "[DIRECTOR] Received 'reset_conversation' command."
+                                )
+                                self.orchestrator._reset_conversation()
                         except (json.JSONDecodeError, TypeError) as e:
                             logging.error(
                                 f"[DIRECTOR] Error processing web command: {e}"
