@@ -9,46 +9,57 @@ from .hardware_controller import HardwareManager
 # --- Scene to Action Mapping ---
 SCENE_ACTIONS = {
     "AUMS_HOME": [
+        {"action": "play_video", "params": {"video_file": "05Talking.mp4"}},
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 2}},
         {"action": "move_robotic_arm", "params": {"p1": 2468, "p2": 68, "p3": 2980}},
     ],
     "AUM_CRYING": [
+        {"action": "play_video", "params": {"video_file": "06Sad.mp4"}},
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 4}},
         {"action": "move_robotic_arm", "params": {"p1": 2457, "p2": 79, "p3": 3447}},
     ],
     "BUS_SOCCER": [
+        {"action": "play_video", "params": {"video_file": "08Excited.mp4"}},
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 5}},
         {"action": "move_robotic_arm", "params": {"p1": 2457, "p2": 79, "p3": 3447}},
     ],
     "MARKET": [
+        {"action": "play_video", "params": {"video_file": "02Thoughtful.mp4"}},
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 3}},
         {"action": "move_robotic_arm", "params": {"p1": 2457, "p2": 68, "p3": 3436}},
     ],
     "AUM_GROWS_UP": [
+        {"action": "play_video", "params": {"video_file": "03Empathy_talk.mp4"}},
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 7}},
         {"action": "move_robotic_arm", "params": {"p1": 2457, "p2": 68, "p3": 3436}},
     ],
     "ROAD_TO_HUA_HIN": [
+        {"action": "play_video", "params": {"video_file": "05Talking.mp4"}},
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 6}},
         {"action": "move_robotic_arm", "params": {"p1": 2457, "p2": 68, "p3": 3436}},
     ],
     "INTERNET_CAFE": [
+        {"action": "play_video", "params": {"video_file": "05Talking.mp4"}},
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 8}},
         {"action": "move_robotic_arm", "params": {"p1": 2446, "p2": 68, "p3": 3436}},
     ],
     "GOOGLE_MAP": [
+        {"action": "play_video", "params": {"video_file": "05Talking.mp4"}},
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 10}},
         {"action": "move_robotic_arm", "params": {"p1": 4000, "p2": 1500, "p3": 3800}},
     ],
     "ROAD_TO_BANGKOK": [
+        {"action": "play_video", "params": {"video_file": "05Talking.mp4"}},
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 11}},
         {"action": "move_robotic_arm", "params": {"p1": 3800, "p2": 1300, "p3": 3700}},
     ],
     "IDLE": [
+        {"action": "play_video", "params": {"video_file": "02Thoughtful.mp4"}},
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 0}},
         {"action": "move_robotic_arm", "params": {"p1": 2048, "p2": 0, "p3": 3960}},
     ],
     "FINDING_BOY": [
+        {"action": "play_video", "params": {"video_file": "05Talking.mp4"}},
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 1}},
         {"action": "move_robotic_arm", "params": {"p1": 2048, "p2": 0, "p3": 3960}},
     ],
