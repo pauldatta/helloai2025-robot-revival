@@ -79,6 +79,18 @@ async def _execute_scene_actions(scene_name, hardware_manager):
                 logging.error(f"[ORCHESTRATOR] ERROR during action {action_name}: {e}")
 
 
+async def _execute_end_scene(hardware_manager):
+    logging.info("[ORCHESTRATOR] ---> Executing end scene ...")
+    action_name = "trigger_diorama_scene"
+    params = {"scene_command_id": 12}
+    function_to_call = getattr(hardware_manager, action_name, None)
+    if callable(function_to_call):
+        try:
+            await function_to_call(**params)
+        except Exception as e:
+            logging.error(f"[ORCHESTRATOR] ERROR during action {action_name}: {e}")
+
+
 async def _get_model_response(client, system_prompt, history):
     logging.info("[ORCHESTRATOR] ---> Calling Gemini API.")
     prompt = json.dumps({"conversation_history": history})
@@ -157,6 +169,7 @@ class StatefulOrchestrator:
         if user_prompt.lower().strip() in self.stop_commands:
             logging.info("[ORCHESTRATOR] Stop command detected. Ending conversation.")
             await director.send_qr_command_to_web()
+            await _execute_end_scene(self.hardware)
             self._reset_conversation()
             return {
                 "narrative": "Thank you for sharing your world with me!",
@@ -192,6 +205,7 @@ class StatefulOrchestrator:
                     "[ORCHESTRATOR] Conversation finished. Triggering QR code."
                 )
                 # await director.send_qr_command_to_web()
+                await _execute_end_scene(self.hardware)
                 self._reset_conversation()
                 return {"narrative": question, "is_story_finished": True}
             else:
@@ -199,7 +213,7 @@ class StatefulOrchestrator:
 
         except Exception as e:
             logging.error(f"[ORCHESTRATOR] CRITICAL_ERROR: {e}")
-            await director.send_qr_command_to_web()
+            # await director.send_qr_command_to_web()
             self._reset_conversation()
             return {
                 "narrative": "I seem to have gotten my wires crossed! Let's try again later.",
