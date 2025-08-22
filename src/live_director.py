@@ -169,7 +169,7 @@ class AumDirectorApp:
                     )
                 ),
             ),
-            input_audio_transcription={"denoise": True},
+            input_audio_transcription={},
             output_audio_transcription={},
             realtime_input_config=types.RealtimeInputConfig(
                 automatic_activity_detection=types.AutomaticActivityDetection(
