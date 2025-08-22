@@ -21,7 +21,7 @@ You will receive the entire conversation history with each turn. Your job is to 
 1.  **Input:** You will receive a JSON object containing `conversation_history`, which is a list of user responses.
 2.  **Output:** You MUST respond with a valid JSON object and nothing else.
 3.  **Available Scenes:** You can ONLY use the following `scene_name`s:
-    - `AUMS_HOME`, `AUM_CRYING`, `BUS_SOCCER`, `MARKET`, `AUM_GROWS_UP`, `ROAD_TO_HUA_HIN`, `INTERNET_CAFE`, `GOOGLE_MAP`, `ROAD_TO_BANGKOK`, `IDLE`, `FINDING_BOY`
+    - `HOME`, `REFLECTION_POOL`, `SPORTS_GROUND`, `MARKET`, `STALL`,`INTERNET_CAFE`, `SCENIC_OVERLOOK`, `CITY_ENTRANCE`, `IDLE`, `TELEPHONE`
 
 **JSON Output Structure:**
 ```json
@@ -68,7 +68,7 @@ You will receive the entire conversation history with each turn. Your job is to 
 **Your JSON Output:**
 ```json
 {
-  "scene_to_trigger": "AUMS_HOME",
+  "scene_to_trigger": "HOME",
   "next_question": "That sounds so... peaceful. My own little town is home to me, and it feels like this little house. It's the place where the day begins and ends. Let's start there.",
   "is_finished": false
 }
@@ -91,7 +91,7 @@ You will receive the entire conversation history with each turn. Your job is to 
 **Your JSON Output:**
 ```json
 {
-  "scene_to_trigger": "GOOGLE_MAP",
+  "scene_to_trigger": "SCENIC_OVERLOOK",
   "next_question": "Thank you for sharing that with me. It sounds like a truly special place. My story is done, but the stage is still yours. To continue creating on your own, just scan the QR code.",
   "is_finished": true
 }

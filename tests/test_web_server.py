@@ -18,7 +18,7 @@ def test_websocket_ui_to_director_forwarding():
         director_ws.send_text(json.dumps({"type": "identify", "client": "director"}))
 
         # 2. UI sends a command
-        command = {"type": "trigger_scene", "scene_name": "AUMS_HOME"}
+        command = {"type": "trigger_scene", "scene_name": "HOME"}
         ui_ws.send_text(json.dumps(command))
 
         # 3. Verify director receives the command from the UI

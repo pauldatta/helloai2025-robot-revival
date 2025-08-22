@@ -14,7 +14,7 @@ logging.basicConfig(
 
 SCENE_ACTIONS = {
     # --- Main Story Scenes ---
-    "AUMS_HOME": [
+    "HOME": [
         # Corresponds to S3: Story of Aum | Aum's Home and S4: Aum's Home - zoom in
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 2}},
         {"action": "move_robotic_arm", "params": {"p1": 2468, "p2": 68, "p3": 2980}},
@@ -23,18 +23,18 @@ SCENE_ACTIONS = {
             "params": {"video_file": "part1_lost_in_the_city.mp4"},
         },
     ],
-    "AUM_CRYING": [
+    "REFLECTION_POOL": [
         # Corresponds to S5: Aum Crying
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 4}},
         {"action": "move_robotic_arm", "params": {"p1": 2457, "p2": 79, "p3": 3447}},
     ],
-    "BUS_SOCCER": [
+    "SPORTS_GROUND": [
         # Corresponds to S6a: Bus and S6b: Bus - Soccer
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 5}},
         {
             "action": "move_robotic_arm",
             "params": {"p1": 2457, "p2": 79, "p3": 3447},
-        },  # Same as AUM_CRYING
+        },  # Same as REFLECTION_POOL
     ],
     "MARKET": [
         # Corresponds to S9: Market
@@ -64,13 +64,13 @@ SCENE_ACTIONS = {
         {"action": "move_robotic_arm", "params": {"p1": 2446, "p2": 68, "p3": 3436}},
         {"action": "play_video", "params": {"video_file": "part3_the_search.mp4"}},
     ],
-    "GOOGLE_MAP": [
+    "SCENIC_OVERLOOK": [
         # Corresponds to S13: Google Map
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 10}},
         {"action": "move_robotic_arm", "params": {"p1": 4000, "p2": 1500, "p3": 3800}},
         {"action": "play_video", "params": {"video_file": "part4_the_path_home.mp4"}},
     ],
-    "ROAD_TO_BANGKOK": [
+    "CITY_ENTRANCE": [
         # Corresponds to S14a: Aum back to BK and S14b: Aum back to BK
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 11}},
         {"action": "move_robotic_arm", "params": {"p1": 3800, "p2": 1300, "p3": 3700}},
@@ -95,15 +95,15 @@ SCENE_ACTIONS = {
     ],
     # --- Guided Mode ---
     # References the main story scenes
-    "GUIDED_MODE_AUMS_HOME": "AUMS_HOME",
-    "GUIDED_MODE_BUS_SOCCER": "BUS_SOCCER",
-    "GUIDED_MODE_AUM_CRYING": "AUM_CRYING",
+    "GUIDED_MODE_HOME": "HOME",
+    "GUIDED_MODE_SPORTS_GROUND": "SPORTS_GROUND",
+    "GUIDED_MODE_REFLECTION_POOL": "REFLECTION_POOL",
     "GUIDED_MODE_MARKET": "MARKET",
     "GUIDED_MODE_AUM_GROWS_UP": "AUM_GROWS_UP",
     "GUIDED_MODE_ROAD_TO_HUA_HIN": "ROAD_TO_HUA_HIN",
     "GUIDED_MODE_INTERNET_CAFE": "INTERNET_CAFE",
-    "GUIDED_MODE_GOOGLE_MAP": "GOOGLE_MAP",
-    "GUIDED_MODE_ROAD_TO_BANGKOK": "ROAD_TO_BANGKOK",
+    "GUIDED_MODE_SCENIC_OVERLOOK": "SCENIC_OVERLOOK",
+    "GUIDED_MODE_CITY_ENTRANCE": "CITY_ENTRANCE",
 }
 
 

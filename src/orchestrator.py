@@ -8,60 +8,55 @@ from .hardware_controller import HardwareManager
 
 # --- Scene to Action Mapping ---
 SCENE_ACTIONS = {
-    "AUMS_HOME": [
+    "HOME": [
         {"action": "play_video", "params": {"video_file": "05Talking.mp4"}},
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 2}},
-        {"action": "move_robotic_arm", "params": {"p1": 2468, "p2": 68, "p3": 2980}},
+        {"action": "move_robotic_arm", "params": {"p1": 2900, "p2": 2600, "p3": 2120}},
     ],
-    "AUM_CRYING": [
+    "REFLECTION_POOL": [
         {"action": "play_video", "params": {"video_file": "06Sad.mp4"}},
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 4}},
-        {"action": "move_robotic_arm", "params": {"p1": 2457, "p2": 79, "p3": 3447}},
+        {"action": "move_robotic_arm", "params": {"p1": 2500, "p2": 2600, "p3": 2500}},
     ],
-    "BUS_SOCCER": [
+    "SPORTS_GROUND": [
         {"action": "play_video", "params": {"video_file": "08Excited.mp4"}},
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 5}},
-        {"action": "move_robotic_arm", "params": {"p1": 2457, "p2": 79, "p3": 3447}},
+        {"action": "move_robotic_arm", "params": {"p1": 1950, "p2": 2900, "p3": 2800}},
     ],
     "MARKET": [
         {"action": "play_video", "params": {"video_file": "02Thoughtful.mp4"}},
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 3}},
-        {"action": "move_robotic_arm", "params": {"p1": 2457, "p2": 68, "p3": 3436}},
+        {"action": "move_robotic_arm", "params": {"p1": 3413, "p2": 2700, "p3": 1500}},
     ],
-    "AUM_GROWS_UP": [
+    "STALL": [
         {"action": "play_video", "params": {"video_file": "03Empathy_talk.mp4"}},
-        {"action": "trigger_diorama_scene", "params": {"scene_command_id": 7}},
-        {"action": "move_robotic_arm", "params": {"p1": 2457, "p2": 68, "p3": 3436}},
-    ],
-    "ROAD_TO_HUA_HIN": [
-        {"action": "play_video", "params": {"video_file": "05Talking.mp4"}},
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 6}},
-        {"action": "move_robotic_arm", "params": {"p1": 2457, "p2": 68, "p3": 3436}},
+        {"action": "move_robotic_arm", "params": {"p1": 1700, "p2": 2800, "p3": 3180}},
+    ],
+    "TELEPHONE": [
+        {"action": "play_video", "params": {"video_file": "05Talking.mp4"}},
+        {"action": "trigger_diorama_scene", "params": {"scene_command_id": 8}},
+        {"action": "move_robotic_arm", "params": {"p1": 600, "p2": 600, "p3": 2360}},
     ],
     "INTERNET_CAFE": [
         {"action": "play_video", "params": {"video_file": "05Talking.mp4"}},
-        {"action": "trigger_diorama_scene", "params": {"scene_command_id": 8}},
-        {"action": "move_robotic_arm", "params": {"p1": 2446, "p2": 68, "p3": 3436}},
+        {"action": "trigger_diorama_scene", "params": {"scene_command_id": 9}},
+        {"action": "move_robotic_arm", "params": {"p1": 1367, "p2": 0, "p3": 2150}},
     ],
-    "GOOGLE_MAP": [
+    "SCENIC_OVERLOOK": [
         {"action": "play_video", "params": {"video_file": "05Talking.mp4"}},
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 10}},
-        {"action": "move_robotic_arm", "params": {"p1": 4000, "p2": 1500, "p3": 3800}},
+        {"action": "move_robotic_arm", "params": {"p1": 800, "p2": 200, "p3": 500}},
     ],
-    "ROAD_TO_BANGKOK": [
+    "CITY_ENTRANCE": [
         {"action": "play_video", "params": {"video_file": "05Talking.mp4"}},
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 11}},
-        {"action": "move_robotic_arm", "params": {"p1": 3800, "p2": 1300, "p3": 3700}},
+        {"action": "move_robotic_arm", "params": {"p1": 4095, "p2": 900, "p3": 600}},
     ],
     "IDLE": [
         {"action": "play_video", "params": {"video_file": "02Thoughtful.mp4"}},
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 0}},
-        {"action": "move_robotic_arm", "params": {"p1": 2048, "p2": 0, "p3": 3960}},
-    ],
-    "FINDING_BOY": [
-        {"action": "play_video", "params": {"video_file": "05Talking.mp4"}},
-        {"action": "trigger_diorama_scene", "params": {"scene_command_id": 1}},
-        {"action": "move_robotic_arm", "params": {"p1": 2048, "p2": 0, "p3": 3960}},
+        {"action": "move_robotic_arm", "params": {"p1": 2390, "p2": 3751, "p3": 1400}},
     ],
 }
 
