@@ -158,57 +158,61 @@ class AumDirectorApp:
             }
         ]
 
+        # Apply best practices for LiveConnectConfig
+        config = types.LiveConnectConfig(
+            response_modalities=["AUDIO"],
+            speech_config=types.SpeechConfig(
+                language_code="en-US",
+                voice_config=types.VoiceConfig(
+                    prebuilt_voice_config=types.PrebuiltVoiceConfig(
+                        voice_name="gemini-2.5-flash-preview-native-audio-dialog"
+                    )
+                ),
+            ),
+            input_audio_transcription={},
+            output_audio_transcription={},
+            realtime_input_config=types.RealtimeInputConfig(
+                automatic_activity_detection=types.AutomaticActivityDetection(
+                    disabled=False,
+                    start_of_speech_sensitivity=types.StartSensitivity.START_SENSITIVITY_LOW,
+                    end_of_speech_sensitivity=types.EndSensitivity.END_SENSITIVITY_LOW,
+                    silence_duration_ms=1200,
+                ),
+                turn_coverage=types.TurnCoverage.TURN_INCLUDES_ALL_INPUT,
+            ),
+            input_audio=types.InputAudio(denoise=True),
+            tools=tools,
+        )
+
         logging.info("--- Bob the Curious Robot ---")
         try:
             await self.orchestrator.hardware.connect_all()
-            while True:
-                try:
-                    async with (
-                        client.aio.live.connect(
-                            model="models/gemini-2.5-flash-preview-native-audio-dialog",
-                            config={
-                                "response_modalities": ["AUDIO"],
-                                "input_audio_transcription": {},
-                                "realtime_input_config": {"automatic_activity_detection": {}},
-                                "tools": tools,
-                            },
-                        ) as session,
-                        asyncio.TaskGroup() as tg,
-                    ):
-                        self.session = session
-        
-                        # Send the system prompt as the first turn to initialize the AI
-                        logging.info("[DIRECTOR] Sending system prompt to initialize the AI.")
-                        await self.session.send_client_content(
-                            turns=[{"role": "user", "parts": [{"text": system_prompt}]}],
-                            turn_complete=False,  # Keep the turn open for the user's first response
-                        )
-        
-                        # Kick off the conversation
-                        logging.info("[DIRECTOR] Kicking off conversation with the AI.")
-                        await self.session.send_client_content(
-                            turns={"role": "user", "parts": []}, turn_complete=True
-                        )
-        
-                        tg.create_task(self.listen_and_send_audio())
-                        tg.create_task(self.play_audio())
-                        tg.create_task(self.receive_and_process())
-                        tg.create_task(self.listen_for_web_commands())
-                except ConnectionClosedError as e:
-                    logging.warning(f"[DIRECTOR] Gemini API connection closed: {e}. Reconnecting in 5 seconds...")
-                    self.session = None # Clear the stale session
-                    await asyncio.sleep(5)
-                except ExceptionGroup as eg:
-                    # Check if the ConnectionClosedError is nested in an ExceptionGroup
-                    is_connection_error = any(isinstance(err, ConnectionClosedError) for err in eg.exceptions)
-                    if is_connection_error:
-                         logging.warning(f"[DIRECTOR] Gemini API connection closed within TaskGroup. Reconnecting in 5 seconds...")
-                         self.session = None
-                         await asyncio.sleep(5)
-                    else:
-                        raise # Re-raise if it's not a connection error
-        except asyncio.CancelledError:
-            pass
+            async with (
+                client.aio.live.connect(
+                    model="models/gemini-2.5-flash-preview-native-audio-dialog",
+                    config=config,
+                ) as session,
+                asyncio.TaskGroup() as tg,
+            ):
+                self.session = session
+
+                # Send the system prompt as the first turn to initialize the AI
+                logging.info("[DIRECTOR] Sending system prompt to initialize the AI.")
+                await self.session.send_client_content(
+                    turns=[{"role": "user", "parts": [{"text": system_prompt}]}],
+                    turn_complete=False,  # Keep the turn open for the user's first response
+                )
+
+                # Kick off the conversation
+                logging.info("[DIRECTOR] Kicking off conversation with the AI.")
+                await self.session.send_client_content(
+                    turns={"role": "user", "parts": []}, turn_complete=True
+                )
+
+                tg.create_task(self.listen_and_send_audio())
+                tg.create_task(self.play_audio())
+                tg.create_task(self.receive_and_process())
+                tg.create_task(self.listen_for_web_commands())
         except Exception as e:
             logging.error(f"[DIRECTOR] CRITICAL_ERROR: {e}\n{traceback.format_exc()}")
         finally:
