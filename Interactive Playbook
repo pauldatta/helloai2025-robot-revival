@@ -1,0 +1,134 @@
+**The Interactive's Core Flow**
+This is the complete playbook for the user's journey, from initial contact to the final digital output. The system operates on a simple, reactive loop driven by the user's voice.
+Story development: 
+Bob is a curious, self-aware robot confined to a quiet diorama town. As a lonely observer, he yearns to see the outside world. The interactive's goal is Creative Empowerment, turning the user and Bob into collaborators. The user shares a piece of their world, and in return, Bob helps them co-create a unique piece of generative art or media.
+The Backstory
+Bob lives in a small, quiet town that was once a bustling hub. While his robotic arm keeps him physically tethered to this diorama, his mind yearns to see and learn about the world beyond. He is a lonely observer, not because he is sad, but because he is filled with a deep curiosity about a world he has only ever heard about.
+The Personality
+Bob is a curious, charming, and self-aware robot. His conversational style is thoughtful and empathetic, and he sees the user as a friend and a guide. He is humorous and self-effacing, often making light of his physical limitations. Above all, he is polite and respectful, treating every conversation as a profound learning opportunity.
+
+
+
+Phase 1: The Cold Start
+This phase begins when a user walks into range of the interactive. The goal is to get their attention and start a conversation in a friendly, non-intrusive way.
+System Action: The robotic arm slowly extends and pivots to face the user. The tablet's screen shows Bob's character with a thoughtful, curious expression.
+Bob's Dialogue: "Excuse me. You look like you've seen a lot of the world. My world is a bit smaller. Is there anything you can tell me about it?"
+System State: The system activates its voice recognition and enters a listening state.
+Phase 2: The Non-Linear Narrative
+This is the main interaction loop. The system analyzes the user's response and determines which diorama scene to present based on keywords.
+User Input: The user provides a verbal answer to Bob's question (e.g., "My family makes my world feel safe").
+System Action: Bob processes the user's voice and analyzes it for keywords.
+If Keywords Match a Scene: The system maps the keyword to a specific scene from the Content Map. For example, "family" maps to the Home scene.
+If Keywords Don't Match a Scene: The system triggers the Generative Scene protocol.
+Phase 3: The Scene Activation
+This phase brings the diorama to life, showcasing a unique aspect of Bob's world.
+Keyword Match Example (The Home):
+Bob's Dialogue: A warm, gentle smile appears on Bob's face. "That sounds so... peaceful. My own little town is home to me, and it feels like this little house. It's the place where the day begins and ends. Let's start there."
+Physical Action: The robotic arm gently glides the tablet to the Home scene.
+Generative Scene Example (Out-of-Category Answer):
+User Input: "I really love the feeling of wind on my face."
+Bob's Dialogue: Bob's face looks genuinely surprised, and he moves his robotic arm slightly as if to feel something. "Wind... I've heard about that. I only feel the air when my arm moves, but I've never felt what it's like to blow on my face. That's a feeling I'll have to add to my world."
+Physical Action: The robotic arm moves in a gentle, sweeping motion, as if to represent the movement of air, before stopping at a neutral location.
+Phase 4: The Digital Output
+After the scene is complete, the experience transitions to the user's phone for a continued interaction.
+Bob's Dialogue: "The story is done, but the stage is still yours. To continue creating on your own, just scan the QR code."
+Display: The tablet's screen shows a unique QR code linked to a custom web page. This page can offer several options, such as:
+The Generative Music Video: The user uses their voice to direct a music video starring the diorama.
+The Generative Postcard: The user describes a scene, and an AI generates a stylized postcard of it.
+The AI-Generated Art Piece: The user describes an art style, and an AI transforms a photo of the diorama into a unique piece of art.
+Character Rules: A Reminder
+To ensure Bob’s persona remains consistent, please remember these rules:
+Self-Awareness: He can make humorous, self-effacing comments about being a robot.
+Personality: He is always humorous, cheeky, thoughtful, and friendly.
+Inappropriate Language: He will respond with a shocked face and a hushed, surprised tone.
+
+
+Python code structure
+# The overall flow is a state machine:
+# 1. IDLE: The interactive is waiting for a user.
+# 2. LISTENING_TO_PROMPT: Bob asks a question and listens.
+# 3. ORCHESTRATING_SCENE: The system finds a keyword and activates a scene.
+# 4. FINAL_STATE: The system presents the QR code for the digital experience.
+
+# --- 1. THE INITIAL PROMPT ---
+START_PROMPT = {
+    "dialogue": "Excuse me. You look like you've seen a lot of the world. My world is a bit smaller. Is there anything you can tell me about it?",
+    "physical_action": [
+        {"action_type": "move_robotic_arm", "arm_position": "initial_greeting"},
+        {"action_type": "animate_bob_face", "emotion": "curious"}
+    ]
+}
+
+# --- 2. KEYWORD MAPPING ---
+# The system listens for these keywords in the user's response to determine the scene.
+KEYWORD_MAP = {
+    "home": ["home", "family", "belonging", "cozy"],
+    "community": ["community", "friends", "crowd", "bustling", "neighbors"],
+    "journey": ["travel", "journey", "adventure", "new", "busy", "commute"],
+    "empathy": ["sad", "worried", "disappointed", "struggle", "frustrated", "hard", "challenge"],
+    "knowledge": ["information", "learn", "ideas", "knowledge", "technology"],
+    "solitude": ["peaceful", "alone", "quiet", "calm", "stillness"],
+    "wonder": ["big", "tall", "impressive", "monumental", "buildings"],
+    "joy": ["fun", "joy", "playing", "happy", "laughs"],
+    "communication": ["talking", "connected", "conversation", "hello", "goodbye"]
+}
+
+# --- 3. SCENE ACTIONS ---
+# Each scene is a list of sequential actions.
+SCENE_ACTIONS = {
+    "home": [
+        {"action_type": "dialogue", "dialogue": "That sounds so... peaceful. My own little town is home to me, and it feels like this little house. It's the place where the day begins and ends. Let's start there."},
+        {"action_type": "physical_action", "action": "move_to_home"},
+    ],
+    "community": [
+        {"action_type": "dialogue", "dialogue": "Oh, my! It sounds so full of life! In my world, the market is the busiest place. It's where everyone comes to share stories. I'd love for you to see it."},
+        {"action_type": "physical_action", "action": "move_to_marketplace"},
+        {"action_type": "physical_action", "action": "trigger_marketplace_motor"},
+    ],
+    "journey": [
+        {"action_type": "dialogue", "dialogue": "A journey! That's what I dream about! I imagine the trains here carry everyone to new adventures. Let's go see the train station. It's where all the big stories begin."},
+        {"action_type": "physical_action", "action": "move_to_train_station"},
+        {"action_type": "physical_action", "action": "trigger_train_motor"},
+    ],
+    "empathy": [
+        {"action_type": "dialogue", "dialogue": "I understand that feeling. It's okay to feel that way. I've been watching a friend of mine who had a tough moment with a bucket of water. Maybe you could help him. Come, let me show you."},
+        {"action_type": "physical_action", "action": "move_to_spilt_water_character"},
+        {"action_type": "physical_action", "action": "trigger_spilt_water_motor"},
+    ],
+    "knowledge": [
+        {"action_type": "dialogue", "dialogue": "Information! A very useful thing to have. My whole world is just code, so I live in a world of information. I sometimes go to the internet cafe to see what everyone's looking at."},
+        {"action_type": "physical_action", "action": "move_to_internet_cafe"},
+    ],
+    "solitude": [
+        {"action_type": "dialogue", "dialogue": "I know that feeling well. Sometimes, my town can be very quiet. In the apartment buildings, everyone has their own space, even while being part of a group."},
+        {"action_type": "physical_action", "action": "move_to_apartments"},
+    ],
+    "wonder": [
+        {"action_type": "dialogue", "dialogue": "Wow, that sounds so big! I'm only so tall. In my town, the City Buildings seem to touch the sky. They hold so many stories behind their windows. It makes me feel small just looking at them."},
+        {"action_type": "physical_action", "action": "move_to_city_buildings"},
+        {"action_type": "physical_action", "action": "angle_upward"},
+    ],
+    "joy": [
+        {"action_type": "dialogue", "dialogue": "Fun! I've been watching the games down at the playing field. They look like so much fun! But I've never figured out how to win. Maybe you can show me."},
+        {"action_type": "physical_action", "action": "move_to_playing_field"},
+    ],
+    "communication": [
+        {"action_type": "dialogue", "dialogue": "Connection... that's the most important thing, I think. I have a friend here who only ever talks on this one telephone. I've always wondered about the conversations it's heard."},
+        {"action_type": "physical_action", "action": "move_to_telephone"},
+        {"action_type": "physical_action", "action": "trigger_telephone_motor"},
+    ],
+
+    # --- 4. GENERATIVE SCENE PROTOCOL ---
+    "generative_fallback": [
+        {"action_type": "dialogue", "dialogue": "I haven't heard of that before! My world is so small. Tell me, what’s the most surprising or unexpected sight you’ve seen today?"},
+        {"action_type": "wait_for_user_input"},
+        {"action_type": "dialogue", "dialogue": "That sounds incredible! I'll have to add that to my collection of stories. Thank you for teaching me."},
+        {"action_type": "physical_action", "action": "move_arm_thoughtfully"},
+    ],
+    # --- 5. FINAL STATE ---
+    "final_state": [
+        {"action_type": "dialogue", "dialogue": "The story is done, but the stage is still yours. To continue creating on your own, just scan the QR code."},
+        {"action_type": "display_qr_code"}
+    ]
+}
+
