@@ -179,11 +179,42 @@ class HardwareManager:
         return await self.robotic_arm_controller.send_command(command)
 
     async def play_video(self, video_file: str):
-        """Plays a video file on the tablet. Placeholder for now."""
-        logging.info(f"[HARDWARE] MOCK_ACTION: Playing video '{video_file}' on tablet.")
-        # In the future, this would send a command to a media player
-        await asyncio.sleep(1)  # Simulate time to start video
-        return f"Video '{video_file}' is now playing."
+        """Plays a video file on the connected Android tablet using ADB."""
+        # This command starts the default video player for a file in the Camera directory
+        command = f"adb shell am start -a android.intent.action.VIEW -d file:///sdcard/DCIM/Camera/{video_file} -t video/*"
+        logging.info(f"[HARDWARE] ---> Executing ADB command: {command}")
+
+        try:
+            proc = await asyncio.create_subprocess_shell(
+                command,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+
+            stdout, stderr = await proc.communicate()
+
+            if proc.returncode == 0:
+                logging.info(
+                    f"[HARDWARE] <--- ADB command successful: {stdout.decode().strip()}"
+                )
+                return f"Successfully started video '{video_file}'."
+            else:
+                error_message = stderr.decode().strip()
+                logging.error(
+                    f"[HARDWARE] ERROR: ADB command failed with code {proc.returncode}: {error_message}"
+                )
+                return f"Error playing video '{video_file}': {error_message}"
+
+        except FileNotFoundError:
+            logging.error(
+                "[HARDWARE] ERROR: 'adb' command not found. Is the Android SDK Platform Tools installed and in your PATH?"
+            )
+            return "Error: 'adb' command not found."
+        except Exception as e:
+            logging.error(
+                f"[HARDWARE] CRITICAL_ERROR: An unexpected error occurred while trying to play video: {e}"
+            )
+            return f"An unexpected error occurred: {e}"
 
     async def close_all_ports(self):
         """Closes all managed serial connections."""
