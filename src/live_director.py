@@ -176,9 +176,7 @@ class AumDirectorApp:
             speech_config=types.SpeechConfig(
                 language_code="en-US",
                 voice_config=types.VoiceConfig(
-                    prebuilt_voice_config=types.PrebuiltVoiceConfig(
-                        voice_name="gemini-2.5-flash-preview-native-audio-dialog"
-                    )
+                    prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name="Zephyr")
                 ),
             ),
             input_audio_transcription={},
@@ -203,7 +201,7 @@ class AumDirectorApp:
                 try:
                     async with (
                         client.aio.live.connect(
-                            model="models/gemini-2.5-flash-preview-native-audio-dialog",
+                            model="gemini-2.5-flash-preview-native-audio-dialog",
                             config=config,
                         ) as session,
                         asyncio.TaskGroup() as tg,
