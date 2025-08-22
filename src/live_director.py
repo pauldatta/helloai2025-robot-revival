@@ -27,10 +27,12 @@ class AumDirectorApp:
         self.audio_in_queue = asyncio.Queue()
         self.session = None
         self.web_socket = None
+        self.is_model_speaking = False
+        self.speaking_lock = asyncio.Lock()
 
     async def send_qr_command_to_web(self):
         """Sends the display_qr command to the web server via WebSocket."""
-        if self.web_socket and self.web_socket.open:
+        if self.web_socket and not self.web_socket.closed:
             logging.info("[DIRECTOR] ---> Sending 'display_qr' command to web server.")
             try:
                 await self.web_socket.send(json.dumps({"type": "display_qr"}))
@@ -101,19 +103,54 @@ class AumDirectorApp:
             denoised_data = reduced_noise.astype(np.int16).tobytes()
 
             if self.session:
-                await self.session.send_realtime_input(
-                    audio={"data": denoised_data, "mime_type": "audio/pcm"}
-                )
+                is_speaking = False
+                async with self.speaking_lock:
+                    is_speaking = self.is_model_speaking
+
+                if not is_speaking:
+                    await self.session.send_realtime_input(
+                        audio={"data": denoised_data, "mime_type": "audio/pcm"}
+                    )
 
     async def play_audio(self):
-        """Plays audio from the incoming queue."""
+        """Plays audio from the incoming queue, managing speaking state."""
         stream = self.pya.open(
             format=FORMAT, channels=CHANNELS, rate=RECEIVE_SAMPLE_RATE, output=True
         )
         logging.info("[DIRECTOR] Audio output is open.")
         while True:
-            chunk = await self.audio_in_queue.get()
-            await asyncio.to_thread(stream.write, chunk)
+            try:
+                # Wait for the first chunk with a short timeout.
+                chunk = await asyncio.wait_for(self.audio_in_queue.get(), timeout=0.25)
+
+                # If we get a chunk, the model is speaking.
+                async with self.speaking_lock:
+                    if not self.is_model_speaking:
+                        logging.debug("[DIRECTOR] Model started speaking.")
+                        self.is_model_speaking = True
+
+                # Play the first chunk.
+                await asyncio.to_thread(stream.write, chunk)
+
+                # Continue playing subsequent chunks without delay.
+                while not self.audio_in_queue.empty():
+                    chunk = self.audio_in_queue.get_nowait()
+                    await asyncio.to_thread(stream.write, chunk)
+
+            except asyncio.TimeoutError:
+                # If the queue is empty for the timeout duration, the model is done.
+                async with self.speaking_lock:
+                    if self.is_model_speaking:
+                        logging.debug("[DIRECTOR] Model stopped speaking.")
+                        self.is_model_speaking = False
+            except asyncio.QueueEmpty:
+                # This can also happen if the queue becomes empty between checks.
+                async with self.speaking_lock:
+                    if self.is_model_speaking:
+                        logging.debug(
+                            "[DIRECTOR] Model stopped speaking (queue empty)."
+                        )
+                        self.is_model_speaking = False
 
     async def receive_and_process(self):
         """Handles responses from Gemini, including tool calls and audio."""
