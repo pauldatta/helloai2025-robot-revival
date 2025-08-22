@@ -5,6 +5,8 @@ import pyaudio
 import traceback
 import json
 import websockets
+import numpy as np
+import noisereduce as nr
 from google import genai
 from google.genai import types
 
@@ -25,10 +27,12 @@ class AumDirectorApp:
         self.audio_in_queue = asyncio.Queue()
         self.session = None
         self.web_socket = None
+        self.is_model_speaking = False
+        self.speaking_lock = asyncio.Lock()
 
     async def send_qr_command_to_web(self):
         """Sends the display_qr command to the web server via WebSocket."""
-        if self.web_socket and self.web_socket.open:
+        if self.web_socket and not self.web_socket.closed:
             logging.info("[DIRECTOR] ---> Sending 'display_qr' command to web server.")
             try:
                 await self.web_socket.send(json.dumps({"type": "display_qr"}))
@@ -75,7 +79,7 @@ class AumDirectorApp:
                 await asyncio.sleep(3)
 
     async def listen_and_send_audio(self):
-        """Captures and sends audio to the Gemini API."""
+        """Captures, denoises, and sends audio to the Gemini API."""
         stream = self.pya.open(
             format=FORMAT,
             channels=CHANNELS,
@@ -88,20 +92,65 @@ class AumDirectorApp:
             data = await asyncio.to_thread(
                 stream.read, CHUNK_SIZE, exception_on_overflow=False
             )
+
+            # Convert to numpy array for processing
+            audio_data = np.frombuffer(data, dtype=np.int16)
+
+            # Denoise the audio data
+            reduced_noise = nr.reduce_noise(y=audio_data, sr=SEND_SAMPLE_RATE)
+
+            # Convert back to bytes
+            denoised_data = reduced_noise.astype(np.int16).tobytes()
+
             if self.session:
-                await self.session.send_realtime_input(
-                    audio={"data": data, "mime_type": "audio/pcm"}
-                )
+                is_speaking = False
+                async with self.speaking_lock:
+                    is_speaking = self.is_model_speaking
+
+                if not is_speaking:
+                    await self.session.send_realtime_input(
+                        audio={"data": denoised_data, "mime_type": "audio/pcm"}
+                    )
 
     async def play_audio(self):
-        """Plays audio from the incoming queue."""
+        """Plays audio from the incoming queue, managing speaking state."""
         stream = self.pya.open(
             format=FORMAT, channels=CHANNELS, rate=RECEIVE_SAMPLE_RATE, output=True
         )
         logging.info("[DIRECTOR] Audio output is open.")
         while True:
-            chunk = await self.audio_in_queue.get()
-            await asyncio.to_thread(stream.write, chunk)
+            try:
+                # Wait for the first chunk with a short timeout.
+                chunk = await asyncio.wait_for(self.audio_in_queue.get(), timeout=0.25)
+
+                # If we get a chunk, the model is speaking.
+                async with self.speaking_lock:
+                    if not self.is_model_speaking:
+                        logging.debug("[DIRECTOR] Model started speaking.")
+                        self.is_model_speaking = True
+
+                # Play the first chunk.
+                await asyncio.to_thread(stream.write, chunk)
+
+                # Continue playing subsequent chunks without delay.
+                while not self.audio_in_queue.empty():
+                    chunk = self.audio_in_queue.get_nowait()
+                    await asyncio.to_thread(stream.write, chunk)
+
+            except asyncio.TimeoutError:
+                # If the queue is empty for the timeout duration, the model is done.
+                async with self.speaking_lock:
+                    if self.is_model_speaking:
+                        logging.debug("[DIRECTOR] Model stopped speaking.")
+                        self.is_model_speaking = False
+            except asyncio.QueueEmpty:
+                # This can also happen if the queue becomes empty between checks.
+                async with self.speaking_lock:
+                    if self.is_model_speaking:
+                        logging.debug(
+                            "[DIRECTOR] Model stopped speaking (queue empty)."
+                        )
+                        self.is_model_speaking = False
 
     async def receive_and_process(self):
         """Handles responses from Gemini, including tool calls and audio."""
@@ -158,59 +207,88 @@ class AumDirectorApp:
             }
         ]
 
-        logging.info("--- Bob the Curious Robot ---")
+        # Apply best practices for LiveConnectConfig
+        config = types.LiveConnectConfig(
+            response_modalities=["AUDIO"],
+            speech_config=types.SpeechConfig(
+                language_code="en-US",
+                voice_config=types.VoiceConfig(
+                    prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name="Zephyr")
+                ),
+            ),
+            input_audio_transcription={},
+            output_audio_transcription={},
+            realtime_input_config=types.RealtimeInputConfig(
+                automatic_activity_detection=types.AutomaticActivityDetection(
+                    disabled=False,
+                    start_of_speech_sensitivity=types.StartSensitivity.START_SENSITIVITY_LOW,
+                    end_of_speech_sensitivity=types.EndSensitivity.END_SENSITIVITY_LOW,
+                    silence_duration_ms=1200,
+                ),
+                turn_coverage=types.TurnCoverage.TURN_INCLUDES_ALL_INPUT,
+            ),
+            tools=tools,
+        )
+
+        logging.info("-- Bob the Curious Robot --")
         try:
             await self.orchestrator.hardware.connect_all()
             while True:
+                logging.info("[DIRECTOR] Attempting to connect to Gemini API...")
                 try:
                     async with (
                         client.aio.live.connect(
-                            model="models/gemini-2.5-flash-preview-native-audio-dialog",
-                            config={
-                                "response_modalities": ["AUDIO"],
-                                "input_audio_transcription": {},
-                                "realtime_input_config": {"automatic_activity_detection": {}},
-                                "tools": tools,
-                            },
+                            model="gemini-2.5-flash-preview-native-audio-dialog",
+                            config=config,
                         ) as session,
                         asyncio.TaskGroup() as tg,
                     ):
                         self.session = session
-        
+                        logging.info("[DIRECTOR] Gemini API connection successful.")
+
                         # Send the system prompt as the first turn to initialize the AI
-                        logging.info("[DIRECTOR] Sending system prompt to initialize the AI.")
                         await self.session.send_client_content(
-                            turns=[{"role": "user", "parts": [{"text": system_prompt}]}],
-                            turn_complete=False,  # Keep the turn open for the user's first response
+                            turns=[
+                                {"role": "user", "parts": [{"text": system_prompt}]}
+                            ],
+                            turn_complete=False,
                         )
-        
+
                         # Kick off the conversation
-                        logging.info("[DIRECTOR] Kicking off conversation with the AI.")
                         await self.session.send_client_content(
                             turns={"role": "user", "parts": []}, turn_complete=True
                         )
-        
+
                         tg.create_task(self.listen_and_send_audio())
                         tg.create_task(self.play_audio())
                         tg.create_task(self.receive_and_process())
                         tg.create_task(self.listen_for_web_commands())
-                except ConnectionClosedError as e:
-                    logging.warning(f"[DIRECTOR] Gemini API connection closed: {e}. Reconnecting in 5 seconds...")
-                    self.session = None # Clear the stale session
+
+                except websockets.exceptions.ConnectionClosedError as e:
+                    logging.warning(
+                        f"[DIRECTOR] Gemini API connection closed: {e}. Reconnecting..."
+                    )
+                    self.session = None
                     await asyncio.sleep(5)
                 except ExceptionGroup as eg:
-                    # Check if the ConnectionClosedError is nested in an ExceptionGroup
-                    is_connection_error = any(isinstance(err, ConnectionClosedError) for err in eg.exceptions)
+                    is_connection_error = any(
+                        isinstance(err, websockets.exceptions.ConnectionClosedError)
+                        for err in eg.exceptions
+                    )
                     if is_connection_error:
-                         logging.warning(f"[DIRECTOR] Gemini API connection closed within TaskGroup. Reconnecting in 5 seconds...")
-                         self.session = None
-                         await asyncio.sleep(5)
+                        logging.warning(
+                            "[DIRECTOR] Gemini API connection closed within TaskGroup. Reconnecting..."
+                        )
+                        self.session = None
+                        await asyncio.sleep(5)
                     else:
-                        raise # Re-raise if it's not a connection error
+                        raise
         except asyncio.CancelledError:
-            pass
+            logging.info("[DIRECTOR] Main task cancelled.")
         except Exception as e:
-            logging.error(f"[DIRECTOR] CRITICAL_ERROR: {e}\n{traceback.format_exc()}")
+            logging.error(
+                f"[DIRECTOR] CRITICAL_ERROR in run loop: {e}\n{traceback.format_exc()}"
+            )
         finally:
             self.pya.terminate()
             if self.orchestrator and hasattr(self.orchestrator, "hardware"):
