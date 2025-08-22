@@ -1,0 +1,3 @@
+[submodule "context/gemini-mm-live-demo"]
+	path = context/gemini-mm-live-demo
+	url = https://github.com/kkrishnan90/gemini-mm-live-demo
