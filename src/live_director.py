@@ -187,34 +187,62 @@ class AumDirectorApp:
         logging.info("--- Bob the Curious Robot ---")
         try:
             await self.orchestrator.hardware.connect_all()
-            async with (
-                client.aio.live.connect(
-                    model="models/gemini-2.5-flash-preview-native-audio-dialog",
-                    config=config,
-                ) as session,
-                asyncio.TaskGroup() as tg,
-            ):
-                self.session = session
+            while True:
+                logging.info("[DIRECTOR] Attempting to connect to Gemini API...")
+                try:
+                    async with (
+                        client.aio.live.connect(
+                            model="models/gemini-2.5-flash-preview-native-audio-dialog",
+                            config=config,
+                        ) as session,
+                        asyncio.TaskGroup() as tg,
+                    ):
+                        self.session = session
+                        logging.info("[DIRECTOR] Gemini API connection successful.")
 
-                # Send the system prompt as the first turn to initialize the AI
-                logging.info("[DIRECTOR] Sending system prompt to initialize the AI.")
-                await self.session.send_client_content(
-                    turns=[{"role": "user", "parts": [{"text": system_prompt}]}],
-                    turn_complete=False,  # Keep the turn open for the user's first response
-                )
+                        # Send the system prompt as the first turn to initialize the AI
+                        await self.session.send_client_content(
+                            turns=[
+                                {"role": "user", "parts": [{"text": system_prompt}]}
+                            ],
+                            turn_complete=False,
+                        )
 
-                # Kick off the conversation
-                logging.info("[DIRECTOR] Kicking off conversation with the AI.")
-                await self.session.send_client_content(
-                    turns={"role": "user", "parts": []}, turn_complete=True
-                )
+                        # Kick off the conversation
+                        await self.session.send_client_content(
+                            turns={"role": "user", "parts": []}, turn_complete=True
+                        )
 
-                tg.create_task(self.listen_and_send_audio())
-                tg.create_task(self.play_audio())
-                tg.create_task(self.receive_and_process())
-                tg.create_task(self.listen_for_web_commands())
+                        tg.create_task(self.listen_and_send_audio())
+                        tg.create_task(self.play_audio())
+                        tg.create_task(self.receive_and_process())
+                        tg.create_task(self.listen_for_web_commands())
+
+                except websockets.exceptions.ConnectionClosedError as e:
+                    logging.warning(
+                        f"[DIRECTOR] Gemini API connection closed: {e}. Reconnecting..."
+                    )
+                    self.session = None
+                    await asyncio.sleep(5)
+                except ExceptionGroup as eg:
+                    is_connection_error = any(
+                        isinstance(err, websockets.exceptions.ConnectionClosedError)
+                        for err in eg.exceptions
+                    )
+                    if is_connection_error:
+                        logging.warning(
+                            "[DIRECTOR] Gemini API connection closed within TaskGroup. Reconnecting..."
+                        )
+                        self.session = None
+                        await asyncio.sleep(5)
+                    else:
+                        raise
+        except asyncio.CancelledError:
+            logging.info("[DIRECTOR] Main task cancelled.")
         except Exception as e:
-            logging.error(f"[DIRECTOR] CRITICAL_ERROR: {e}\n{traceback.format_exc()}")
+            logging.error(
+                f"[DIRECTOR] CRITICAL_ERROR in run loop: {e}\n{traceback.format_exc()}"
+            )
         finally:
             self.pya.terminate()
             if self.orchestrator and hasattr(self.orchestrator, "hardware"):
