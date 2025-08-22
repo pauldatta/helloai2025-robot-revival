@@ -2,6 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0] - 2025-08-22
+
+### Added
+- **New Persona: "Bob the Curious Robot"**
+  - Introduced a new central character, Bob, a curious robot who engages users in a multi-turn conversation to learn about their world.
+  - Created new AI prompts (`BOB_DIRECTOR.md`, `BOB_STORYTELLER.md`) to define Bob's persona and drive the conversation.
+- **Multi-Turn Conversational Architecture**
+  - Implemented a stateful orchestrator that manages conversation history and turn numbers.
+  - The AI now asks 3-5 follow-up questions based on the user's previous answers.
+  - Added "stop commands" to allow users to gracefully end the conversation.
+- **Web-Based QR Code Transition**
+  - Integrated a web-based QR code display at the end of each conversation to transition the user to a digital experience.
+  - Updated the web server and UI to handle WebSocket commands for displaying the QR code.
+- **Refined Mission Control UI**
+  - Rebranded the UI for "Bob the Curious Robot."
+  - Added a "Conversation State" panel to monitor the turn number and conversation history.
+  - Implemented a "Reset Conversation" button to allow for easy testing and debugging.
+
+### Changed
+- **Project Pivot from "Aum's Journey"**
+  - The project's core concept has been pivoted from a linear narrative about Aum to an interactive, curious conversation with Bob.
+- **Simplified Orchestrator Logic**
+  - Refactored the orchestrator to a single `process_user_input` method, removing the previous story-based logic.
+- **Updated Live Director**
+  - The `LiveDirector` has been updated to handle the new multi-turn conversational flow and kick off the conversation automatically.
+
+### Removed
+- Removed the diorama map from the Mission Control UI as it was no longer needed.
+- Removed obsolete video files and test suites related to the previous "Aum's Journey" narrative.
+
 ## [Unreleased] - 2025-08-08
 
 ### Added
