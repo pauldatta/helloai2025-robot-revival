@@ -184,7 +184,7 @@ class AumDirectorApp:
             tools=tools,
         )
 
-        logging.info("--- Bob the Curious Robot ---")
+        logging.info("-- Bob the Curious Robot --")
         try:
             await self.orchestrator.hardware.connect_all()
             while True:
