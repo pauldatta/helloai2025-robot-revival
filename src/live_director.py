@@ -5,6 +5,8 @@ import pyaudio
 import traceback
 import json
 import websockets
+import numpy as np
+import noisereduce as nr
 from google import genai
 from google.genai import types
 
@@ -75,7 +77,7 @@ class AumDirectorApp:
                 await asyncio.sleep(3)
 
     async def listen_and_send_audio(self):
-        """Captures and sends audio to the Gemini API."""
+        """Captures, denoises, and sends audio to the Gemini API."""
         stream = self.pya.open(
             format=FORMAT,
             channels=CHANNELS,
@@ -88,9 +90,19 @@ class AumDirectorApp:
             data = await asyncio.to_thread(
                 stream.read, CHUNK_SIZE, exception_on_overflow=False
             )
+
+            # Convert to numpy array for processing
+            audio_data = np.frombuffer(data, dtype=np.int16)
+
+            # Denoise the audio data
+            reduced_noise = nr.reduce_noise(y=audio_data, sr=SEND_SAMPLE_RATE)
+
+            # Convert back to bytes
+            denoised_data = reduced_noise.astype(np.int16).tobytes()
+
             if self.session:
                 await self.session.send_realtime_input(
-                    audio={"data": data, "mime_type": "audio/pcm"}
+                    audio={"data": denoised_data, "mime_type": "audio/pcm"}
                 )
 
     async def play_audio(self):
