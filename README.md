@@ -1,36 +1,34 @@
-# Aum's Journey: An Interactive Robotic Art Installation
-[![Run Python Tests](https://github.com/pauldatta/helloai2025-robot-revival/actions/workflows/python-tests.yml/badge.svg)](https://github.com/pauldatta/helloai2025-robot-revival/actions/workflows/python-tests.yml)
+# Bob the Curious Robot: An Interactive Diorama Experience
 
-This project is the control plane for "Aum's Journey," an interactive robotic art installation that tells the true story of Aum, a man who found his way home after being lost for 15 years, using Google's voice search.
+This project is the control plane for "Bob the Curious Robot," an interactive robotic art installation. Bob is a curious robot who lives in a small diorama town and longs to learn about the world outside. Through a voice-driven, conversational experience, Bob asks users about their world and connects their answers to the scenes in his own.
 
-The system uses a voice-activated AI architecture powered by the Gemini API. A **Live Director** handles real-time conversation, passing the user's speech to a stateful **Orchestrator**. The Orchestrator determines the user's desired scene, generates a narrative, and triggers all corresponding hardware actions.
+The system uses a voice-activated AI architecture powered by the Gemini API. A **Live Director** handles real-time conversation, passing the user's speech to a stateful **Orchestrator**. The Orchestrator processes the user's response, determines the appropriate scene in the diorama, generates a creative narrative, and triggers all corresponding hardware actions. At the end of the interaction, it presents a QR code to transition the user to a digital experience.
 
 ## System Architecture
 
-The application's logic is decoupled into a voice interface, a control plane, and a hardware action map.
+The application is built on a stateful, multi-turn conversational architecture designed to create a natural, curious interaction with Bob.
 
-1.  **Live Director (`live_director.py`):** Captures the user's speech and acts as the text-to-speech engine for the AI's narrative. It is a pure voice interface.
-2.  **Orchestrator (`orchestrator.py`):** The "brain" of the operation. It takes the user's speech, calls the Gemini API to determine the `next_scene`, and then executes all hardware actions associated with that scene.
-3.  **Scene-to-Action Mapping (`orchestrator.py`):** A simple Python dictionary (`SCENE_ACTIONS`) maps scene names to a list of hardware commands. This decouples the AI from the hardware, making it incredibly easy to add new scenes or actions (e.g., video playback, smoke machines) without changing the AI's prompt or logic.
+1.  **Live Director (`live_director.py`):** The voice interface. It captures the user's speech, relays it to the Orchestrator, and speaks the next question that the AI generates. It is responsible for the turn-by-turn flow of the conversation.
+2.  **Orchestrator (`orchestrator.py`):** The "brain" of the operation. It maintains the `conversation_history` and `turn_number`. With each user response, it calls the Gemini API, providing the full conversation history as context.
+3.  **Conversation Engine (`prompts/BOB_STORYTELLER.md`):** This is the core creative AI. It receives the conversation history and generates the next logical question for Bob to ask, chooses a relevant diorama scene to trigger, and determines when the conversation has reached a natural conclusion (after 3-5 turns).
+4.  **Scene-to-Action Mapping (`orchestrator.py`):** A simple Python dictionary (`SCENE_ACTIONS`) maps scene names to a list of hardware commands, decoupling the AI's creative decisions from the physical hardware execution.
 
 ![System Architecture Diagram](context/new_architecture_diagram.svg)
 
 ## Mission Control Web Interface
 
-The project includes a real-time web interface for monitoring and control, accessible at `http://localhost:8000` when running the app. It provides a live log stream, a parsed conversation transcript, and a system status panel, all powered by a FastAPI backend with WebSockets.
+The project includes a real-time web interface for monitoring and control, accessible at `http://localhost:8000`. It provides a live log stream, a parsed conversation transcript, and a system status panel. The interface also includes manual controls for triggering scenes and moving the robotic arm, which is essential for calibration.
 
-The interface also includes two key control panels:
--   **Scene Controls:** Buttons to trigger any of the pre-defined story scenes.
--   **Manual Arm Control:** Number inputs to directly set the `p1`, `p2`, and `p3` coordinates of the robotic arm, which is essential for calibrating scene positions. When used, the system state will change to `MANUAL_OVERRIDE`.
+At the end of each interaction, the web interface will display a QR code, allowing the user to continue their journey on a digital platform.
 
 ![Mission Control Web Interface](context/aums_web_admin.png)
 
 ## Project Structure
 
 -   `src/`: Contains all the core Python source code.
--   `prompts/`: Holds the system prompt that defines the AI's storytelling and state-management behavior.
--   `tests/`: Contains unit tests.
--   `context/`: Contains story context, diagrams, and original hardware code.
+-   `prompts/`: Holds the system prompts that define the AI personas for Bob.
+-   `web/`: Contains the FastAPI web server and the HTML/JS for the Mission Control interface.
+-   `context/`: Contains project context, diagrams, and original hardware code.
 
 ## Customizing Scenes and Actions
 
@@ -55,16 +53,6 @@ Each scene is a key in the dictionary. Its value is a list of action objects, wh
 | `move_robotic_arm`        | Moves the robotic arm to a specific coordinate.                                                                 | `p1`, `p2`, `p3` (integers): The coordinates for the arm's position.      |
 | `play_video`              | Plays a video file on the connected tablet. Video files are located in the `context/` directory.                  | `video_file` (string): The name of the video file.                      |
 
-### Scene Aliasing
-
-You can also make one scene an alias for another by setting its value to the string name of the target scene. This is useful for creating different narrative paths (like the guided mode) that reuse the same hardware actions.
-
-```python
-"GUIDED_MODE_AUMS_HOME": "AUMS_HOME",
-```
-
-This configuration makes the `GUIDED_MODE_AUMS_HOME` scene execute the same actions as the `AUMS_HOME` scene.
-
 ## Development Workflow with Gemini CLI
 
 This project includes custom commands for the Gemini CLI to accelerate common development tasks. These commands are defined in the `.gemini/commands/` directory.
@@ -81,32 +69,25 @@ This project includes custom commands for the Gemini CLI to accelerate common de
 
 - **Install `socat`** (Required for Emulator Mode on macOS/Linux):
   - **macOS:** `brew install socat`
-  - **Linux:** `sudo apt-get install socat`
 - **Install Audio & Python Dependencies:**
   - **macOS:** `brew install portaudio`
-  - **Linux:** `sudo apt-get install libportaudio2`
   - Then, install Python packages: `pip install -r requirements.txt`
 - **Install Git Hooks:**
-  - This will automatically format and lint your code before each commit.
-    ```bash
-    pre-commit install
-    ```
+  - `pre-commit install`
 - **Configure API Key:**
-  - Copy `.env.example` to a new file named `.env`.
-  - Edit `.env` and add your `GEMINI_API_KEY`.
+  - Copy `.env.example` to `.env` and add your `GEMINI_API_KEY`.
 
 ### 2. Running the Application
 
 #### Development (Emulator Mode)
 
-For local development without physical hardware, the application runs in an emulated mode. This setup uses `socat` to create virtual serial ports.
+For local development without physical hardware.
 
 1.  **Activate Virtual Environment:**
     ```bash
     source venv/bin/activate
     ```
 2.  **Start Services with Foreman:**
-    The `Procfile.dev` defines all the services needed for emulation: the web server, the hardware emulator, the virtual ports, and the main director application.
     ```bash
     foreman start -f Procfile.dev
     ```
@@ -114,61 +95,55 @@ For local development without physical hardware, the application runs in an emul
 
 #### Production (with Hardware)
 
-When running with the physical Arduino hardware, the application requires a different setup.
-
 1.  **Configure Environment:**
-    - Open your `.env` file.
-    - Set the environment to production: `AUM_ENVIRONMENT="prod"`.
-    - Connect your hardware and find the device paths (e.g., by running `ls /dev/tty.*` or `ls /dev/cu.*` on macOS).
-    - Set the correct port paths for your hardware in the `.env` file (e.g., `MAIN_CONTROLLER_PORT="/dev/tty.usbmodem12345"` and `ROBOTIC_ARM_PORT="/dev/tty.usbmodemABCDE"`).
-
-    - **Production Hardware Ports:** The production Mac mini uses the following serial ports. These should be configured in your `.env` file.
-      - **Main Controller (OpenCR Board):** `/dev/cu.usbmodem1421`
-        ```
-        Device: /dev/cu.usbmodem1421
-        Description: OpenCR Virtual ComPort in FS Mode
-        Hardware ID: USB VID:PID=0483:5740 SER=FFFFFFFEFFFF LOCATION=20-2
-        ```
-      - **Robotic Arm (IOUSBHostDevice):** `/dev/cu.usbmodem1461`
-        ```
-        Device: /dev/cu.usbmodem1461
-        Description: IOUSBHostDevice
-        Hardware ID: USB VID:PID=2341:0042 SER=9563533393035150C0C1 LOCATION=20-6
-        ```
-
-2.  **Run with Foreman (Recommended):**
-    The `Procfile.prod` is configured to run the necessary processes for a production environment (the web server and the director). This is the standard way to run the application for deployment or production testing.
+    - In your `.env` file, set `AUM_ENVIRONMENT="prod"`.
+    - Set the correct serial port paths for your hardware. The production Mac mini uses the following:
+      - **Main Controller (OpenCR Board):** `MAIN_CONTROLLER_PORT="/dev/cu.usbmodem1421"`
+      - **Robotic Arm (IOUSBHostDevice):** `ROBOTIC_ARM_PORT="/dev/cu.usbmodem1461"`
+2.  **Run with Foreman:**
     ```bash
-    source venv/bin/activate
-    # Ensure AUM_ENVIRONMENT is set to "prod" in your .env file
+    source ven/bin/activate
     foreman start -f Procfile.prod
     ```
 
-3.  **Run Manually (Alternative):**
-    If you prefer not to use `foreman`, you can run the web server and the director in two separate terminal windows.
 
-    - **Terminal 1: Start the Web Server**
-      ```bash
-      source venv/bin/activate
-      uvicorn web.server:app --host 0.0.0.0 --port 8000
-      ```
-    - **Terminal 2: Start the Director**
-      ```bash
-      source venv/bin/activate
-      python -m src.main
-      ```
+## Getting Started
 
-### 3. Running Tests
-- To verify the application's logic, run the unit tests:
-  ```bash
-  source venv/bin/activate
-  python -m unittest discover tests
-  ```
+### 1. Initial Setup
 
-## Research
+- **Install `socat`** (Required for Emulator Mode on macOS/Linux):
+  - **macOS:** `brew install socat`
+- **Install Audio & Python Dependencies:**
+  - **macOS:** `brew install portaudio`
+  - Then, install Python packages: `pip install -r requirements.txt`
+- **Install Git Hooks:**
+  - `pre-commit install`
+- **Configure API Key:**
+  - Copy `.env.example` to `.env` and add your `GEMINI_API_KEY`.
 
-Here are some resources that provide context and background for the story of Aum:
+### 2. Running the Application
 
--   **The Story of Aum (Video):** [Watch on YouTube](https://www.youtube.com/watch?v=VBhLYy2LCjQ&t=1s)
--   **Google for Thailand Blog Post:** [Read on Google Blog](https://blog.google/around-the-globe/google-asia/googleforthailand/?utm_source=tw&utm_medium&utm_campaign=og)
--   **Across the Pond - Google Aum's Reunion:** [View the Case Study](https://acrossthepond.com/work/google-aums-reunion)
+#### Development (Emulator Mode)
+
+For local development without physical hardware.
+
+1.  **Activate Virtual Environment:**
+    ```bash
+    source venv/bin/activate
+    ```
+2.  **Start Services with Foreman:**
+    ```bash
+    foreman start -f Procfile.dev
+    ```
+    The web interface will be available at `http://localhost:8000`.
+
+#### Production (with Hardware)
+
+1.  **Configure Environment:**
+    - In your `.env` file, set `AUM_ENVIRONMENT="prod"`.
+    - Set the correct serial port paths for your hardware (e.g., `MAIN_CONTROLLER_PORT` and `ROBOTIC_ARM_PORT`).
+2.  **Run with Foreman:**
+    ```bash
+    source venv/bin/activate
+    foreman start -f Procfile.prod
+    ```

@@ -113,6 +113,43 @@ async def websocket_control_endpoint(websocket: WebSocket):
                     # by continuing the loop but not processing other message types from it.
                     continue
 
+                # --- New QR Code Logic ---
+                # If the director sends a 'display_qr' command, broadcast it to all UIs
+                if (
+                    client_socket == director_socket
+                    and message.get("type") == "display_qr"
+                ):
+                    logging.info(
+                        "[WEB_SERVER] Received 'display_qr' command from director. Broadcasting to all UIs."
+                    )
+                    qr_message = json.dumps({"type": "display_qr"})
+                    # Create a copy of the set to safely iterate over it
+                    for ui_socket in list(ui_control_sockets):
+                        try:
+                            await ui_socket.send_text(qr_message)
+                        except ConnectionClosed:
+                            # Handle case where UI client disconnected between iterations
+                            ui_control_sockets.remove(ui_socket)
+                    continue  # Don't forward this message back to the director
+
+                if message.get("type") == "reset_conversation":
+                    logging.info(
+                        "[WEB_SERVER] Received 'reset_conversation' command from UI. Forwarding to director."
+                    )
+                    if director_socket:
+                        try:
+                            await director_socket.send_text(data)
+                        except ConnectionClosed:
+                            logging.error(
+                                "[WEB_SERVER] Director is not connected. Command not sent."
+                            )
+                            director_socket = None
+                    else:
+                        logging.warning(
+                            "[WEB_SERVER] No director connected to forward command to."
+                        )
+                    continue
+
             except json.JSONDecodeError:
                 # Not a json message, treat as legacy or ignore
                 pass

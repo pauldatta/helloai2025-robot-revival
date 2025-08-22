@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aum's Journey - Mission Control</title>
+    <title>Bob the Curious Robot - Mission Control</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         :root {
@@ -40,22 +40,26 @@
         .status-item { display: flex; justify-content: space-between; margin-bottom: 8px; align-items: center; }
         .status-value { padding: 3px 10px; border-radius: 5px; background-color: #333; font-weight: bold; }
 
-        #map-widget {
-            position: relative; width: 100%; padding-bottom: 100%; border-radius: 50%;
-            background-image: url('/static/Server_Screenshot.png'); background-size: 150%;
-            background-position: 52% 50%; border: 4px solid var(--border-color);
+        #qr-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.85);
+            display: none; /* Hidden by default */
+            justify-content: center; align-items: center; flex-direction: column;
+            z-index: 1000;
         }
-        #arm-indicator {
-            position: absolute; width: 20px; height: 20px; background-color: var(--accent-color);
-            border-radius: 50%; border: 2px solid white; transform: translate(-50%, -50%);
-            transition: top 0.5s ease, left 0.5s ease; top: 50%; left: 50%;
-        }
+        #qr-overlay img { width: 400px; height: 400px; border: 5px solid white; border-radius: 10px; }
+        #qr-overlay p { color: white; font-size: 1.5em; margin-top: 20px; }
     </style>
 </head>
 <body>
+    <div id="qr-overlay">
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=https://example.com" alt="QR Code">
+        <p>Scan to continue the journey!</p>
+    </div>
+
     <div class="grid-container">
         <header class="header panel">
-            <h4 class="m-0">Aum's Journey - Mission Control</h4>
+            <h4 class="m-0">Bob the Curious Robot - Mission Control</h4>
         </header>
 
         <main class="main-content panel">
@@ -64,6 +68,12 @@
         </main>
 
         <section class="systems-column d-flex flex-column gap-3">
+            <div class="panel">
+                <div class="panel-title">Conversation State</div>
+                <div class="status-item"><span>Turn Number:</span> <span id="turn-number" class="status-value">0 / 5</span></div>
+                <div id="conversation-history" class="mb-2"></div>
+                <button id="reset-conversation-btn" class="btn btn-warning mt-auto">Reset Conversation</button>
+            </div>
             <div class="panel">
                 <div class="panel-title">System Status</div>
                 <div class="status-item"><span>Director:</span> <span id="status-director" class="status-value">STANDBY</span></div>
@@ -77,12 +87,6 @@
         </section>
 
         <aside class="widgets-column d-flex flex-column gap-3">
-            <div class="panel">
-                <div class="panel-title">Diorama Map</div>
-                <div id="map-widget">
-                    <div id="arm-indicator"></div>
-                </div>
-            </div>
             <div class="panel">
                 <div class="panel-title">Scene Controls</div>
                 <div id="scene-controls" class="d-grid gap-2"></div>
@@ -148,46 +152,44 @@
             logContainer.scrollTop = logContainer.scrollHeight;
         }
 
-        function mapCoordinates(p1, p2) {
-            const p1_norm = (p1 - P1_MIN) / (P1_MAX - P1_MIN);
-            const p2_norm = (p2 - P2_MIN) / (P2_MAX - P2_MIN);
-            return {
-                left: Math.max(5, Math.min(95, p1_norm * 100)),
-                top: Math.max(5, Math.min(95, p2_norm * 100))
-            };
-        }
-
         function updateDashboard(message) {
+            // Update conversation transcript
             if (message.startsWith('[DIRECTOR] ---> User speech detected')) {
-                addTranscriptItem(message.split(': "')[1].slice(0, -1), 'User');
-                document.getElementById('status-director').innerHTML = "<strong>Director:</strong> LISTENING";
+                const speech = message.split(': "')[1].slice(0, -1);
+                addTranscriptItem(speech, 'User');
+                // Update conversation history panel
+                const historyContainer = document.getElementById('conversation-history');
+                const historyItem = document.createElement('div');
+                historyItem.textContent = speech;
+                historyContainer.appendChild(historyItem);
             } else if (message.startsWith('[DIRECTOR] <--- Received narrative')) {
-                addTranscriptItem(message.split(': "')[1].split('" |')[0], 'Aum');
+                addTranscriptItem(message.split(': "')[1].split('" |')[0], 'Bob');
             }
-            if (message.includes('Updated scene to') || message.includes('Scene state is now')) {
-                const scene = message.split('"')[1];
-                const sceneEl = document.getElementById('status-scene');
-                sceneEl.textContent = scene.replace(/_/g, ' ');
-                if (scene === 'MANUAL_OVERRIDE') {
-                    sceneEl.classList.add('text-warning');
-                } else {
-                    sceneEl.classList.remove('text-warning');
-                }
-                document.getElementById('status-orchestrator').textContent = "IDLE";
-            }
+
+            // Update system status
             if (message.includes('Calling Gemini API')) {
                 document.getElementById('status-orchestrator').textContent = "THINKING";
+            } else if (message.includes('[ORCHESTRATOR]')) {
+                 document.getElementById('status-orchestrator').textContent = "IDLE";
             }
-            if (message.includes("Queuing action: move_robotic_arm") || message.includes("Manually moving arm to")) {
-                const p1Match = /p1=(\d+)/.exec(message) || /'p1': (\d+)/.exec(message);
-                const p2Match = /p2=(\d+)/.exec(message) || /'p2': (\d+)/.exec(message);
-                if (p1Match && p2Match) {
-                    const p1 = parseInt(p1Match[1], 10);
-                    const p2 = parseInt(p2Match[1], 10);
-                    const { left, top } = mapCoordinates(p1, p2);
-                    document.getElementById('arm-indicator').style.left = `${left}%`;
-                    document.getElementById('arm-indicator').style.top = `${top}%`;
+            
+            if (message.includes("Executing actions for scene")) {
+                const scene = message.split("'")[1];
+                document.getElementById('status-scene').textContent = scene.replace(/_/g, ' ');
+            }
+
+            // Update turn number from orchestrator log
+            if (message.includes('Turn')) {
+                const turnMatch = /Turn (\d+)/.exec(message);
+                if (turnMatch) {
+                    document.getElementById('turn-number').textContent = `${parseInt(turnMatch[1]) + 1} / 5`;
                 }
+            }
+            
+            if (message.includes('Conversation has been reset')) {
+                document.getElementById('turn-number').textContent = '0 / 5';
+                document.getElementById('conversation-history').innerHTML = '';
+                document.getElementById('transcript-container').innerHTML = '';
             }
         }
 
@@ -216,6 +218,16 @@
                 setTimeout(connectControl, 2000);
             };
             controlSocket.onerror = (error) => console.error("Control WebSocket error:", error);
+            controlSocket.onmessage = (event) => {
+                try {
+                    const message = JSON.parse(event.data);
+                    if (message.type === 'display_qr') {
+                        document.getElementById('qr-overlay').style.display = 'flex';
+                    }
+                } catch (e) {
+                    console.error("Error parsing control message:", e);
+                }
+            };
         }
 
         function sendControlCommand(command) {
@@ -245,6 +257,10 @@
             const p2 = parseInt(document.getElementById('p2-input').value, 10);
             const p3 = parseInt(document.getElementById('p3-input').value, 10);
             sendControlCommand({ type: "move_robotic_arm", params: { p1, p2, p3 } });
+        };
+
+        document.getElementById('reset-conversation-btn').onclick = () => {
+            sendControlCommand({ type: "reset_conversation" });
         };
         
         connectLogs();
