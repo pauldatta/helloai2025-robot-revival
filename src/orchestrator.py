@@ -58,6 +58,11 @@ SCENE_ACTIONS = {
         {"action": "trigger_diorama_scene", "params": {"scene_command_id": 0}},
         {"action": "move_robotic_arm", "params": {"p1": 2390, "p2": 3751, "p3": 3505}},
     ],
+    "AHA_MOMENT": [
+        {"action": "play_video", "params": {"video_file": "08Excited.mp4"}},
+        {"action": "trigger_diorama_scene", "params": {"scene_command_id": 12}},
+        {"action": "move_robotic_arm", "params": {"p1": 2390, "p2": 3751, "p3": 3505}},
+    ],
 }
 
 
